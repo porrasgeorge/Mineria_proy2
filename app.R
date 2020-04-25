@@ -1,9 +1,11 @@
-library(shiny) 
+library(shiny)
+##library(shinyFiles)
 library(lubridate)
 library(ggplot2)
 library(dplyr) 
 library(tidyr)
 library(scales)
+library(openxlsx)
 source("DB.R")
 source("methods.R")
 
@@ -17,7 +19,7 @@ names(tensiones) <- c("Nom", "limit087" ,"limit091","limit093","limit095" ,"limi
 sources <- DBget_Sources()
 
 ui <- fluidPage(
-    titlePanel("Coopeguanacaste"),
+    titlePanel(title = h2("Coopeguanacaste", align = "center")),
     sidebarLayout(
         sidebarPanel(
             dateRangeInput("daterange", "Rango de Fecha",
@@ -25,35 +27,54 @@ ui <- fluidPage(
                            end = end_dateCR,
                            ##min = min(Surveillance$Date),
                            ##max = max(Surveillance$Date),
-                           separator = " - ", format = "dd/mm/yyyy",
-                           startview = 'Week', language = 'es', weekstart = 1),  
+                           separator = " - ", 
+                           format = "dd/mm/yyyy",
+                           startview = 'Week', 
+                           language = 'es', 
+                           weekstart = 1),  
             
             selectInput(inputId = 'selected_source',
-                      label='Medidores',
-                      choices=sources$Name),
+                        label='Medidores',
+                        choices=sources$Name),
             
             actionButton(inputId = "go", label = "Go"),
+            submitButton("Aplicar"),
             
-            downloadButton("downloadData", "Download")
+            downloadButton("downloadData", "Download"),
+            
+            selectInput("State", "Select One", c("Abc" = 1, "Cxa" = 2, "AAvvb" = 3), selected = 1),
+            radioButtons("Staterb", "Select One", c("Abc" = 1, "Cxa" = 2, "AAvvb" = 3), selected = 2),
+            p("Blah blah blah"),
+            width = 2
             
         ),
         mainPanel(
             textOutput("message_text"),
-            tableOutput('table'),
-            plotOutput("histogram")
+            tabsetPanel(type = "tab", 
+                        tabPanel("Summary" ),
+                        tabPanel("Structure"),
+                        tabPanel("Table", 
+                                 h4("Tabla"),
+                                 tableOutput('table')),
+                        tabPanel("Plot", plotOutput("histogram"))
+                        )
+
         )
     )
 )
 
+
 server <- function(input, output) {
-    selectedSourceId <- eventReactive(input$selected_source, {
-        get_SourceIDbyName(sources, input$selected_source)
-        })
     
-    selected_sourceName_reactive <- eventReactive(input$selected_source, {
+###################################################################################### Reactivity
+    selectedSourceId <- eventReactive(input$selected_source, {
+    get_SourceIDbyName(sources, input$selected_source)
+    })
+
+    selected_sourceName_reactive <- eventReactive(input$go, {
         paste0(input$selected_source)
     })
-    
+
     IonData_LineV <- eventReactive(input$go, {
         DBget_DataLineVoltage(sources, selectedSourceId(), input$daterange, tensiones)
         })
@@ -67,41 +88,47 @@ server <- function(input, output) {
             }
         })
         
+        
+###################################################################################### Table
+        
         output$table <- renderTable(
             if (is.null(IonData_LineV())){
                 return (NULL)
             }
             else {
-                create_Percent_Table(IonData_LineV(), tensiones)
-            })
-        
+                create_Percent_Table(IonData_LineV(),
+                                     tensiones)
+            }, 
+            digits = 0, 
+            striped = TRUE, 
+            hover = TRUE, 
+            bordered = TRUE)
+
+###################################################################################### Plot
         output$histogram <- renderPlot({
             if (is.null(IonData_LineV())){
                 return (NULL)
             }
             else {
-            ggplot(IonData_LineV(), aes(x = Classif, y = Perc, label = Perc, fill = Quantity )) +
-                geom_col(position = "dodge", width = 0.7) +
-                scale_y_continuous(labels = function(x) paste0(100*x, "%"), limits = c(0, 1.2)) +
-                geom_text(aes(label=sprintf("%0.2f%%", 100*Perc)), 
-                          position = position_dodge(0.9), 
-                          angle = 90, size = 2) + 
-                theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8)) +
-                ggtitle(input$selected_source) +
-                xlab("Medicion") + 
-                ylab("Porcentaje")
+                return(create_Histo_Plot(IonData_LineV(), 
+                                         selected_sourceName_reactive()))
             }
         })
-        
+
+###################################################################################### downloads
         output$downloadData <- downloadHandler(
             filename = function() {
-                selected_sourceName_reactive()
+                paste(selected_sourceName_reactive(), ".xlsx", sep = "")
             },
             content = function(file) {
-                write.csv(create_Percent_Table(IonData_LineV(), tensiones), file, row.names = TRUE)
+                saveWorkbook(create_Excel_file(create_Percent_Table(IonData_LineV(), 
+                                                                    tensiones), 
+                                               selected_sourceName_reactive()), 
+                             file = file, 
+                             overwrite = TRUE)
             }
-        )
+            )
         
-        
+
         }
 shinyApp (ui = ui, server = server)

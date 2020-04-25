@@ -62,8 +62,7 @@ DBget_DataLineVoltage <- function(sources, selected_source, daterange, tensiones
   
   dataLog$classif <- factor(dataLog$classif, levels = list("TN087", "TN087_091", "TN091_093", "TN093_095", "TN095_105", "TN105_107", "TN107_109", "TN109_113", "TN113"))
   dataLog_table <- as.data.frame(table(dataLog$classif, dataLog$Quantity, dnn = c("Classif", "Quantity")))
-  sum_total <- sum(dataLog_table$Freq)/3
+  sum_total <- floor(sum(dataLog_table$Freq)/3)
   dataLog_table$Perc <- dataLog_table$Freq/sum_total
-  
   return(dataLog_table)
 }
