@@ -1,5 +1,67 @@
+filter_DataDataSelection <- function(dataToFilter, Source, dateRange, quantType){
+  print("Filter_DataDataSelection called ...")
+  
+  quantities <- vector()
+  if (quantType == "Vline"){
+    quantities <- c('Vab', 'Vbc', 'Vca')
+  }
+  else if (quantType == "Vphase"){
+    quantities <- c('Van', 'Vbn', 'Vcn')
+  }
+  
+  lineV <- dataToFilter %>% 
+    filter(Meter == Source,
+           Quantity %in% quantities, 
+           TimestampCR >= dateRange[1], 
+           TimestampCR < dateRange[2])
+  
+  lineV$Quantity <- factor(lineV$Quantity, levels = quantities)
+  print("Filter_DataDataSelection OK ...")
+  return(lineV)
+}
+
+
+####################################################################################################
+
+voltage_Summary <- function(data, t_Nom){
+  print("voltage_Summary called ...")
+
+  if (nrow(data) == 0) {
+    return (NULL)
+  }
+
+  tensiones <- c(t_Nom, 0.87*t_Nom, 0.91*t_Nom,0.93*t_Nom,0.95*t_Nom,1.05*t_Nom,1.07*t_Nom,1.09*t_Nom,1.13*t_Nom)
+  names(tensiones) <- c("Nom", "limit087" ,"limit091","limit093","limit095" ,"limit105" ,"limit107" ,"limit109" ,"limit113")
+  
+  voltage_DF <- data %>% mutate(Classif = case_when(Value < tensiones["limit087"] ~ "TN087",
+                                                Value < tensiones["limit091"] ~ "TN087_091",
+                                                Value < tensiones["limit093"] ~ "TN091_093",
+                                                Value < tensiones["limit095"] ~ "TN093_095",
+                                                Value < tensiones["limit105"] ~ "TN095_105",
+                                                Value < tensiones["limit107"] ~ "TN105_107",
+                                                Value < tensiones["limit109"] ~ "TN107_109",
+                                                Value < tensiones["limit113"] ~ "TN109_113",
+                                                TRUE ~ "TN113"
+  ))
+  
+  voltage_DF$Classif <- factor(voltage_DF$Classif, levels = list("TN087", "TN087_091", "TN091_093", "TN093_095", "TN095_105", "TN105_107", "TN107_109", "TN109_113", "TN113"))
+  voltage_table <- as.data.frame(table(voltage_DF$Classif, voltage_DF$Quantity, dnn = c("Classif", "Quantity")))
+  
+  countsV <- voltage_table %>% group_by(Quantity) %>%
+    summarise(CountSum = sum(Freq))
+  
+  voltage_table <- voltage_table %>% left_join(countsV, by = "Quantity")
+  voltage_table$Perc <- if_else(voltage_table$CountSum == 0, 0, voltage_table$Freq/voltage_table$CountSum)
+  
+  print("voltage_Summary OK ...")
+  return(voltage_table)
+}
+
+
+
 
 group_VoltagesName <- function(volt_list){
+  print("group_VoltagesName called ...")
   volt_group <- vector()
   if ("Vab" %in% volt_list){
     volt_group <- c(volt_group, "Vline")
@@ -12,7 +74,7 @@ group_VoltagesName <- function(volt_list){
 
 
 guess_Nominal <- function(var_values){
-  
+  print("guess_Nominal called ...")
   var_values <- var_values[var_values >100]
   avg <- mean(var_values)
   Nominal = case_when(avg < 16000 ~ 14376,
@@ -25,12 +87,11 @@ guess_Nominal <- function(var_values){
 
 
 
-create_Percent_Table <- function(dataLog_table){
-  print("create percent table ...")
+create_Percent_Table <- function(dataLog_table, t_Nom){
+  print("create_Percent_Table called ...")
   dataLog_table$Perc <- label_percent(accuracy = 0.01)(dataLog_table$Perc)
   dataLog_table$Freq <- as.integer(dataLog_table$Freq)
   
-  t_Nom <- T_Nominal
   tensiones <- c(t_Nom, 0.87*t_Nom, 0.91*t_Nom,0.93*t_Nom,0.95*t_Nom,1.05*t_Nom,1.07*t_Nom,1.09*t_Nom,1.13*t_Nom)
   names(tensiones) <- c("Nom", "limit087" ,"limit091","limit093","limit095" ,"limit105" ,"limit107" ,"limit109" ,"limit113")
   
@@ -46,8 +107,8 @@ create_Percent_Table <- function(dataLog_table){
   return(t3)
 }
 
-create_Histo_Plot <- function(IonData_LineV, title){
-  p <- ggplot(IonData_LineV, aes(x = Classif, y = Perc, label = Perc, fill = Quantity )) +
+create_Histo_Plot <- function(IonData_V, title){
+  p <- ggplot(IonData_V, aes(x = Classif, y = Perc, label = Perc, fill = Quantity )) +
     geom_col(position = "dodge", width = 0.7) +
     scale_y_continuous(labels = function(x) paste0(100*x, "%"), limits = c(0, 1.2)) +
     geom_text(aes(label=sprintf("%0.2f%%", 100*Perc)), 
@@ -62,6 +123,7 @@ create_Histo_Plot <- function(IonData_LineV, title){
 }
 
 create_Excel_file <- function(table, ws_name){
+  print("create_Excel_file called ...")
   wb <- createWorkbook()
   addWorksheet(wb, ws_name)
   setColWidths(wb, ws_name, cols = c(1:10), widths = c(20, rep(15, 9) ))

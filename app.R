@@ -58,14 +58,25 @@ ui <- fluidPage(
     textOutput("message_text"),
     textOutput("message_text_V"),
     hr(),
+    
+    
     tabsetPanel(type = "tab", 
                 tabPanel("Summary" ),
-                tabPanel("Structure"),
+                tabPanel("Histogram2",
+                         align="center",
+                         br(),
+                         sliderInput(inputId = "bins",
+                                   label = "Numero de barras:",
+                                   min = 10,
+                                   max = 100,
+                                   value = 50),
+                         plotOutput("histo2")),
                 tabPanel("Tabla", 
                          align="center",
                          ## h4("Tabla"),
                          tableOutput('table')),
-                tabPanel("Histograma", plotOutput("histogram"))
+                tabPanel("Histograma", 
+                         plotOutput("histogram"))
                 )
 
         
@@ -78,8 +89,6 @@ server <- function(input, output, session) {
     
 ###################################################################################### Reactivity
     
-    T_Nominal <- reactiveVal(10)
-
     
     observeEvent(input$coop_si,
                  updateSelectInput(session, "source_si", label='Medidor:', 
@@ -89,50 +98,80 @@ server <- function(input, output, session) {
                  updateSelectInput(session, "quant_type", label='Variable', 
                                    choices = group_VoltagesName(coop_mets$Quantity[coop_mets$Meter == input$source_si])))
 
+    
+    
     meter_data <- reactive({
-        DBget_Voltage(input$source_si, input$daterange, input$quant_type)
+        return(filter_DataDataSelection(dataLog, input$source_si, input$daterange, input$quant_type))
     })
     
+    t_Nominal <- reactive({
+        return(guess_Nominal(meter_data()$Value))
+        })
+
+    voltageTable <- reactive({
+        return(voltage_Summary(meter_data(), t_Nominal()))
+    })
+
     output$message_text <- renderText({
-        if (is.null(meter_data())){
+        if (is.null(voltageTable())){
             paste("No hay datos en el periodo seleccionado")
         }
         else {
-            paste("Se tiene: ", sum(meter_data()$Freq), " datos")
+            paste("Se tiene: ", sum(voltageTable()$Freq), " datos")
         }
     })
 
     output$message_text_V <- renderText({
-        paste("Voltage nominal detectado: ", T_Nominal(), "V")
+        paste("Voltage nominal detectado: ", t_Nominal(), "V")
     })
 
 ###################################################################################### Table
 
         output$table <- renderTable(
-            if (is.null(meter_data())){
+            if (is.null(voltageTable())){
                 return (NULL)
             }
             else {
-                create_Percent_Table(meter_data())
+                create_Percent_Table(voltageTable(), t_Nominal())
             },
             digits = 0,
             striped = TRUE,
             hover = TRUE,
             ##bordered = TRUE,
-            width = '100%', 
+            width = '100%',
             align = 'c')
 
 ###################################################################################### Plot
 
         output$histogram <- renderPlot({
+            if (is.null(voltageTable())){
+                return (NULL)
+            }
+            else {
+                return(create_Histo_Plot(voltageTable(),
+                                         input$source_si))
+            }
+        })
+        
+        output$histo2 <- renderPlot({
             if (is.null(meter_data())){
                 return (NULL)
             }
             else {
-                return(create_Histo_Plot(meter_data(),
-                                         input$source_si))
+                x <- meter_data()$Value
+                bins <- seq(min(x), max(x), length.out = input$bins + 1)
+                
+                return(hist(x, 
+                            breaks = bins, 
+                            col = "#75AADB", 
+                            border = "blue",
+                            xlab = "Voltaje",
+                            ylab = "Frecuencia",
+                            main = "Histograma de Voltaje"))
             }
         })
+        
+        
 
 ###################################################################################### downloads
 #         output$downloadData <- downloadHandler(
