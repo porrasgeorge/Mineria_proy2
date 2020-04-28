@@ -1,68 +1,120 @@
 library(RODBC)
+library(feather)
+library(tidyverse)
 
-DBget_Sources <- function(){
-  channel <- odbcConnect("SQL_ION", uid="sa", pwd="Con3$adm.")
-  sources <- sqlQuery(channel , "select top 100 ID, Name, DisplayName from Source where Name like 'Coopeguanacaste.%'")
-  sources$Name <- gsub("Coopeguanacaste.", '', sources$Name)
-  sources <- sources %>% filter(ID > 47)
-  sources$Name <- gsub("_"," ", sources$Name)
-  odbcClose(channel)
-  
-  return(sources)
-}
+DB_getDataSaveFile <- function(){
 
-DBget_DataLineVoltage <- function(sources, selected_source, daterange, tensiones){
-  print("i have been called ")
-
-  start_date_UTC <- with_tz(daterange[1], tzone = "UTC")
-  end_date_UTC <- with_tz(daterange[2], tzone = "UTC")
-  
+  final_dateCR <- floor_date(now(), "day") ## corte hasta hoy
+  initial_dateCR <- final_dateCR - months(2) ## 3 meses hacia atras 
+  initial_date <- with_tz(initial_dateCR, tzone = "UTC") 
+  final_date <- with_tz(final_dateCR, tzone = "UTC")
   
   channel <- odbcConnect("SQL_ION", uid="sa", pwd="Con3$adm.")
-  quantity <- sqlQuery(channel , "select top 1500000 ID, Name from Quantity where Name like 'Voltage%'")
-  dataLog <- sqlQuery(channel , paste0("select top 500000 * from DataLog2 where ",
-                            "SourceID in (", selected_source, ")",
-                            " and QuantityID in (167, 173, 176)",
-                            " and TimestampUTC >= '", start_date_UTC, "'",
-                            " and TimestampUTC < '", end_date_UTC, "'"))
-  odbcClose(channel)
+  sources <- sqlQuery(channel , "select top 1000 ID, Name from Source")
+  sources <- sources %>% 
+    separate(Name, c("Cooperative", "Meter"), "\\.") %>%
+    filter(!Cooperative %in% c("LOGINSERTER", "QUERYSERVER", "VIP"))
   
-  if (nrow(dataLog) == 0) {
-    return (NULL)
-  }
+  quantity <- sqlQuery(channel , "select top 1500 ID, Name from Quantity where Name like 'Voltage%'")
+  quantities <- quantity %>% 
+    filter(grepl("^Voltage Phases [ABC][ABC] Mean$", Name) |
+             grepl("^Voltage on Input V[123] Mean - Power Quality Monitoring$", Name)) %>%
+    arrange(ID)
+  quantities$Name <- c('Vab', 'Vbc', 'Vca', 'Van', 'Vbn', 'Vcn')
+
+  source_ids <- paste0(sources$ID, collapse = ",")
+  quantity_ids <- paste0(quantities$ID, collapse = ",")
   
-  quantity <- quantity %>% filter(grepl("^Voltage Phases [ABC][ABC] Mean$", Name))
-  quantity$Name <- c('Vab', 'Vbc', 'Vca')
+  dataLog <- sqlQuery(channel , paste0("select top 5000000 * from dataLog2 where ",
+                                       "SourceID in (", source_ids, ")",
+                                       " and QuantityID in (", quantity_ids, ")",
+                                       " and TimestampUTC >= '", initial_date, "'",
+                                       " and TimestampUTC < '", final_date, "'"))
   
+  odbcCloseAll()
+
   dataLog$TimestampUTC <- as_datetime(dataLog$TimestampUTC)
   dataLog$TimestampCR <- with_tz(dataLog$TimestampUTC, tzone = "America/Costa_Rica") 
   dataLog$TimestampUTC <- NULL
   dataLog$ID <- NULL
   
-  dataLog <- dataLog %>% left_join(quantity, by = c('QuantityID' = "ID")) %>%
+  dataLog <- dataLog %>% left_join(quantities, by = c('QuantityID' = "ID")) %>%
     left_join(sources, by = c('SourceID' = "ID"))
   
-  names(dataLog)[names(dataLog) == "Name.x"] <- "Quantity"
-  names(dataLog)[names(dataLog) == "Name.y"] <- "Meter"
+  dataLog$Name <- as.factor(dataLog$Name)
+  dataLog$Cooperative <- as.factor(dataLog$Cooperative)
+  dataLog$Meter <- gsub(pattern = "_", replacement = " ", dataLog$Meter)
+  dataLog$Meter <- as.factor(dataLog$Meter)
+  names(dataLog)[names(dataLog) == "Name"] <- "Quantity"
   dataLog$SourceID <- NULL
   dataLog$QuantityID <- NULL
-  dataLog$DisplayName <- NULL
   
+  rm(quantities, quantity, source_ids, quantity_ids)
+  #write_feather(dataLog, "featherFiles/dataLog.feather")
+}
+
+
+
+
+####################################################################################################
+
+DBget_Voltage <- function(selected_source, daterange, quant_type){
   
-  dataLog <- dataLog %>% mutate(classif = case_when(Value < tensiones["limit087"] ~ "TN087",
-                                                    Value < tensiones["limit091"] ~ "TN087_091",
-                                                    Value < tensiones["limit093"] ~ "TN091_093",
-                                                    Value < tensiones["limit095"] ~ "TN093_095",
-                                                    Value < tensiones["limit105"] ~ "TN095_105",
-                                                    Value < tensiones["limit107"] ~ "TN105_107",
-                                                    Value < tensiones["limit109"] ~ "TN107_109",
-                                                    Value < tensiones["limit113"] ~ "TN109_113",
-                                                    TRUE ~ "TN113"
+  print("get voltages called ")
+  
+  quantities <- vector()
+  if (quant_type == "Vline"){
+    quantities <- c('Vab', 'Vbc', 'Vca')
+  }
+  else if (quant_type == "Vphase"){
+    quantities <- c('Van', 'Vbn', 'Vcn')
+  }
+  
+  lineV <- dataLog %>% 
+    filter(Meter == selected_source,
+           Quantity %in% quantities, 
+           TimestampCR >= daterange[1], 
+           TimestampCR < daterange[2])
+
+  lineV$Quantity <- factor(lineV$Quantity, levels = quantities)
+  t_Nom = guess_Nominal(lineV$Value)
+  
+  T_Nominal <<- t_Nom
+  print(paste("V= ", t_Nom))
+  ##T_Nominal(t_Nom)
+  
+  tensiones <- c(t_Nom, 0.87*t_Nom, 0.91*t_Nom,0.93*t_Nom,0.95*t_Nom,1.05*t_Nom,1.07*t_Nom,1.09*t_Nom,1.13*t_Nom)
+  names(tensiones) <- c("Nom", "limit087" ,"limit091","limit093","limit095" ,"limit105" ,"limit107" ,"limit109" ,"limit113")
+
+  if (nrow(lineV) == 0) {
+    return (NULL)
+  }
+  
+
+  lineV <- lineV %>% mutate(classif = case_when(Value < tensiones["limit087"] ~ "TN087",
+                                                Value < tensiones["limit091"] ~ "TN087_091",
+                                                Value < tensiones["limit093"] ~ "TN091_093",
+                                                Value < tensiones["limit095"] ~ "TN093_095",
+                                                Value < tensiones["limit105"] ~ "TN095_105",
+                                                Value < tensiones["limit107"] ~ "TN105_107",
+                                                Value < tensiones["limit109"] ~ "TN107_109",
+                                                Value < tensiones["limit113"] ~ "TN109_113",
+                                                TRUE ~ "TN113"
   ))
   
-  dataLog$classif <- factor(dataLog$classif, levels = list("TN087", "TN087_091", "TN091_093", "TN093_095", "TN095_105", "TN105_107", "TN107_109", "TN109_113", "TN113"))
-  dataLog_table <- as.data.frame(table(dataLog$classif, dataLog$Quantity, dnn = c("Classif", "Quantity")))
-  sum_total <- floor(sum(dataLog_table$Freq)/3)
-  dataLog_table$Perc <- dataLog_table$Freq/sum_total
-  return(dataLog_table)
+  lineV$classif <- factor(lineV$classif, levels = list("TN087", "TN087_091", "TN091_093", "TN093_095", "TN095_105", "TN105_107", "TN107_109", "TN109_113", "TN113"))
+  lineV_table <- as.data.frame(table(lineV$classif, lineV$Quantity, dnn = c("Classif", "Quantity")))
+  
+  countsV <- lineV_table %>% group_by(Quantity) %>%
+    summarise(CountSum = sum(Freq))
+  
+  lineV_table <- lineV_table %>% left_join(countsV, by = "Quantity")
+  lineV_table$Perc <- if_else(lineV_table$CountSum == 0, 0, lineV_table$Freq/lineV_table$CountSum)
+  
+  ##browser()
+  
+  ##sum_total <- floor(sum(lineV_table$Freq)/3)
+  #lineV_table$Perc <- lineV_table$Freq/sum_total
+  
+  return(lineV_table)
 }

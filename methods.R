@@ -1,15 +1,39 @@
 
-get_SourceIDbyName <- function(sources, selName){
-  ID <- sources %>% filter(Name == selName)
-  sourceID<- ID[1,1]
-  return(sourceID)
+group_VoltagesName <- function(volt_list){
+  volt_group <- vector()
+  if ("Vab" %in% volt_list){
+    volt_group <- c(volt_group, "Vline")
+  }
+  if ("Van" %in% volt_list){
+    volt_group <- c(volt_group, "Vphase")
+  }
+  return(volt_group)
 }
 
-create_Percent_Table <- function(dataLog_table, tensiones){
-  print("excecuted....")
+
+guess_Nominal <- function(var_values){
+  
+  var_values <- var_values[var_values >100]
+  avg <- mean(var_values)
+  Nominal = case_when(avg < 16000 ~ 14376,
+                      avg < 23000 ~ 20207,
+                      avg < 29000 ~ 24900,
+                      TRUE ~ 35000
+  )
+  return(Nominal)
+}
+
+
+
+create_Percent_Table <- function(dataLog_table){
+  print("create percent table ...")
   dataLog_table$Perc <- label_percent(accuracy = 0.01)(dataLog_table$Perc)
   dataLog_table$Freq <- as.integer(dataLog_table$Freq)
-#  browser()
+  
+  t_Nom <- T_Nominal
+  tensiones <- c(t_Nom, 0.87*t_Nom, 0.91*t_Nom,0.93*t_Nom,0.95*t_Nom,1.05*t_Nom,1.07*t_Nom,1.09*t_Nom,1.13*t_Nom)
+  names(tensiones) <- c("Nom", "limit087" ,"limit091","limit093","limit095" ,"limit105" ,"limit107" ,"limit109" ,"limit113")
+  
   t1 <- dataLog_table %>% select(Classif, Quantity, Freq) %>% spread(Quantity, value = Freq, fill = 0)
   t2 <- dataLog_table %>% select(Classif, Quantity, Perc) %>% spread(Quantity, value = Perc, fill = 0)
   t3 <- t1 %>% left_join(t2, by = "Classif")
