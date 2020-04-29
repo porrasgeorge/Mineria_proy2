@@ -16,6 +16,11 @@ filter_DataDataSelection <- function(dataToFilter, Source, dateRange, quantType)
            TimestampCR < dateRange[2])
   
   lineV$Quantity <- factor(lineV$Quantity, levels = quantities)
+  lineV$TimestampCR <- format(lineV$TimestampCR,'%d-%m-%Y %H:%M')
+  
+  lineV <- lineV %>% arrange(TimestampCR, Quantity)
+  lineV$Value <- as.integer(lineV$Value)
+   
   print("Filter_DataDataSelection OK ...")
   return(lineV)
 }

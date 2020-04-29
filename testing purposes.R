@@ -1,2 +1,3 @@
 
-paste("tab", 1:30, sep=" ")
+dataLog <- dataLog %>% filter(!grepl('Sub Laguna-SD79SWinDemand|Sub Zarcero-SD79SWinDemand', Meter))
+## write_feather(dataLog, "featherFiles/dataLog_v2.feather")
