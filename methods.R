@@ -137,3 +137,41 @@ create_Excel_file <- function(table, ws_name){
   
   
 }
+
+meter_classes <- function(meters){
+  meters_class <- as.data.frame(unique(meters), nm = ("Meter"))
+  meters_class$Type <- "Distribucion"
+  meters_class$Type <- factor(meters_class$Type, levels = c("Generacion", "Distribucion"))
+  
+  meter_Gen <- c("BIJAGUA CANALETE L2",
+                 "BIJAGUA MIRAVALLES L1",
+                 "BIJAGUA U1",
+                 "BIJAGUA U2",
+                 "Cacao",
+                 "Cacao Nicoya",
+                 "Cacao StaCruz",
+                 "Canalete Unidad1",
+                 "Canalete Unidad2",
+                 "JUANILAMA PRINCIPAL",
+                 "MIRAVALLES BIJAGUA",
+                 "MIRAVALLES CANALETE",
+                 "PERN",
+                 "ICE PELS SR1",
+                 "PELS bck")
+  
+  meters_class[meters_class$Meter %in% meter_Gen,]$Type <- "Generacion"
+  return(meters_class)
+}
+
+quantity_class<- function(quntities){
+  quant_class <- case_when(grepl("^V(ab|bc|ca)$", quntities) ~ "Vline",
+                           grepl("^V(an|bn|cn)", quntities) ~ "Vphase",
+                           grepl("^(Rea|A)ctive Power$", quntities) ~ "Power",
+                           grepl("^Power Factor (Lagging|Leading) (AVG|MAX)$", quntities) ~ "Power Factor",
+                           grepl("^Voltage Unbalance (AVG|MAX)$", quntities) ~ "Vunbalance",
+                           grepl("^Current I[ABC] THD (AVG|MAX)$", quntities) ~ "I THD",
+                           grepl("^Voltage V[123] THD (AVG|MAX)$", quntities) ~ "V THD",
+                           TRUE ~ "None"
+                           )
+  return(quant_class)
+}

@@ -14,115 +14,117 @@ end_dateCR <- floor_date(now(), "week")+ days(1)
 start_dateCR <- end_dateCR - weeks(1)
 
 #dataLog  <- read_feather("featherFiles/dataLog.feather")
-dataLog  <- read_feather("featherFiles/dataLog_v2.feather")
+dataLog  <- read_feather("featherFiles/dataLog_big.feather")
+
 coop_mets <- dataLog %>%
-    distinct(Cooperative, Meter, Quantity)%>%
-    arrange(Cooperative, Meter, Quantity)
+    distinct(Cooperative, Type, Meter, Quantity)%>%
+    arrange(Cooperative, Type, Meter, Quantity)
 
 ################################################################################################
 ui <- fluidPage(theme = shinytheme("united"),
-    titlePanel(title = img(src='logo.png', style="display: block; margin-left: auto; margin-right: auto;"), 
-               windowTitle = "CDC Conelectricas"),
-    tags$head(HTML("<link rel='icon' type='image/gif/png' href='ConeLogo.jpg'>")), 
-    
-    hr(),
+    tags$head(HTML("<title>CDC Conelectricas</title> <link rel='icon' type='image/gif/png' href='ConeLogo.jpg'>")), 
     h4("Filtros:"),
-    fluidRow(
     
-        column(3,
-            dateRangeInput("daterange", "Rango de Fecha",
-                           start = start_dateCR,
-                           end = end_dateCR,
-                           ##min = min(Surveillance$Date),
-                           ##max = max(Surveillance$Date),
-                           separator = " - ", 
-                           format = "dd/mm/yyyy",
-                           startview = 'Week', 
-                           language = 'es', 
-                           weekstart = 1)
-            ),
-        column(3, 
+    fluidRow(
+        column(2,
+               dateRangeInput("daterange", "Rango de Fecha",
+                              start = start_dateCR,
+                              end = end_dateCR,
+                              separator = " - ", 
+                              format = "dd/mm/yyyy",
+                              startview = 'Week', 
+                              language = 'es', 
+                              weekstart = 1)
+        ),
+        column(2, 
                selectInput(inputId = 'coop_si',
                            label='Cooperativa',
                            choices=unique(coop_mets$Cooperative))
         ),
-        column(3, 
+        column(2, 
+               selectInput(inputId = 'type_si',
+                           label='Tipo',
+                           choices="",
+                           selected = "")
+        ),
+        column(2, 
                selectInput(inputId = 'source_si',
                            label='Medidor',
                            choices="",
                            selected = "")
         ),
-        column(3, 
+        column(2, 
                selectInput(inputId = "quant_type", 
                            label="Variable", 
                            choices = "", 
                            selected = "")
+        ),
+        column(1,offset = 1, 
+               img(src='ConeLogo.jpg', style="display: block; margin-left: auto; margin-right: auto; width: 75px; height: 75px")
         )
-        ), ## fin de fluid row
-    
-    hr(),
-        
-    textOutput("message_text"),
-    textOutput("message_text_V"),
-    hr(),
+    ), ## fin de fluid row
     
     
-    tabsetPanel(type = "tab", 
-                tabPanel("Tabla Original" ,
-                         DTOutput('full_Table')),
-                tabPanel("Histograma",
-                         align="center",
+    
+    tabsetPanel(type = "tab",
+                tabPanel("Voltaje",
                          br(),
-                         
-                         column(3,
-                                sliderInput(inputId = "Hist1_bins",
-                                            label = "Numero de barras:",
-                                            min = 10,
-                                            max = 100,
-                                            value = 50)
-                                ),
-                         
-                         column(3,
-                                
-                                sliderInput(inputId = "Hist1_minV",
-                                            label = "Voltaje Minimo",
-                                            min = 0,
-                                            max = 35000,
-                                            value = 0)
-                                ),
-                         
-                         
-                         plotOutput("histo2")
-                         ),
-                tabPanel("Boxplot",
-                         align="center",
-                         br(),
-                         
-                         column(3,
-                                
-                                sliderInput(inputId = "Box_minV",
-                                            label = "Eliminar Valores menores a:",
-                                            min = 0,
-                                            max = 35000,
-                                            value = 0)
-                         ),
-                         plotOutput("box_volt")
-                ),
+                tabsetPanel(type = "tab",
+                            tabPanel("Resumen de datos",
+                                     textOutput("message_text"),
+                                     textOutput("message_text_V")
+                                     ),
+                            tabPanel("Tabla Original" ,
+                                     DTOutput('full_Table')),
+                            tabPanel("Densidad",
+                                     align="center",
+                                     br(),
+                                     column(3,
+                                            
+                                            sliderInput(inputId = "Hist1_minV",
+                                                        label = "Voltaje Minimo",
+                                                        min = 0,
+                                                        max = 35000,
+                                                        value = 0)
+                                            ),
+                                     plotOutput("volt_dens")
+                                     ),
+                            tabPanel("Boxplot",
+                                     align="center",
+                                     br(),
+                                     
+                                     column(3,
+                                            
+                                            sliderInput(inputId = "Box_minV",
+                                                        label = "Eliminar Valores menores a:",
+                                                        min = 0,
+                                                        max = 35000,
+                                                        value = 0)
+                                     ),
+                                     plotOutput("box_volt")
+                            ),
+                            
+                            tabPanel("Clasificación", 
+                                     align="center",
+                                     ## h4("Tabla"),
+                                     tableOutput('table')),
+                            
+                            tabPanel("Histograma de Clasificación", 
+                                     plotOutput("histogram"))
+                            ) ## tabsetPanel_2
+                ),  ## tabPanel Voltajes
+                tabPanel("THDs", 
+                         hr()),
                 
+                tabPanel("XYZ", 
+                         hr()),
                 
+                tabPanel("ABCD", 
+                         hr())
                 
-                
-                
-                tabPanel("Clasificación", 
-                         align="center",
-                         ## h4("Tabla"),
-                         tableOutput('table')),
-                tabPanel("Histograma de Clasificación", 
-                         plotOutput("histogram"))
-                )
-
-        
-    )
+         ) ## tabsetPanel_1
+    
+) ## fluidpage
 
 
 ################################################################################################
@@ -133,12 +135,18 @@ server <- function(input, output, session) {
     
     
     observeEvent(input$coop_si,
-                 updateSelectInput(session, "source_si", label='Medidor:', 
-                                   choices = coop_mets$Meter[coop_mets$Cooperative == input$coop_si]))
+                 updateSelectInput(session, "type_si", label='Tipo', 
+                                   choices = coop_mets$Type[coop_mets$Cooperative == input$coop_si]))
+    
+    observeEvent(input$type_si,
+                 updateSelectInput(session, "source_si", label='Medidor', 
+                                   choices = coop_mets$Meter[(coop_mets$Type == input$type_si) & (coop_mets$Cooperative == input$coop_si)]))
+    
     
     observeEvent(input$source_si,
                  updateSelectInput(session, "quant_type", label='Variable', 
                                    choices = group_VoltagesName(coop_mets$Quantity[coop_mets$Meter == input$source_si])))
+    
 
     observeEvent( meter_data(), {
         print("meter_data va a ser modificada")
@@ -158,10 +166,7 @@ server <- function(input, output, session) {
                               max = max_val,
                               value = min_val)
         }
-        
-        
         print("meter_data ha sido modificada")
-        
     })
     
     meter_data <- reactive({
@@ -174,6 +179,10 @@ server <- function(input, output, session) {
 
     voltageTable <- reactive({
         return(voltage_Summary(meter_data(), t_Nominal()))
+    })
+    
+    unbalance_table<- reactive({
+        return()
     })
     
     output$message_text <- renderText({
@@ -217,19 +226,17 @@ server <- function(input, output, session) {
                 in_table <- meter_data()
                 in_table <- in_table %>% spread(Quantity, value = Value, fill = 0)
                 in_table$Cooperative <- NULL
+                in_table$Type <- NULL
                 in_table$Meter <- NULL
-                glimpse(in_table)
                 return(in_table)
             },
-            filter = "top",
-            options = list(pageLength = 10, columnDefs = list(list(className = 'dt-center', targets = 1:4)))
+            filter = "none",
+            selection = "none", 
+            options = list(pageLength = 15, columnDefs = list(list(className = 'dt-center', targets = 1:4)))
             )
-        
-        
 
-###################################################################################### Plot
-## Histogramas
-        
+        ##########################################################################################
+        ## Voltage Predefined Histogram
         output$histogram <- renderPlot({
             if (is.null(voltageTable())){
                 return (NULL)
@@ -239,30 +246,32 @@ server <- function(input, output, session) {
                                          input$source_si))
             }
         })
-        
-        output$histo2 <- renderPlot({
+
+        ##########################################################################################
+        ## Voltage Density Plot
+        output$volt_dens <- renderPlot({
             if (is.null(meter_data())){
                 return (NULL)
             }
             else {
-                in_data <- meter_data()$Value
-                plot_data <- in_data[in_data > input$Hist1_minV]
-                if (length(plot_data) <10){
+                in_data <- meter_data()
+                plot_data <- in_data[in_data$Value > input$Hist1_minV,]
+                lineas <- plot_data %>% group_by(Quantity) %>% summarise(v = mean(Value))
+                if (nrow(plot_data) <10){
                     return(NULL)
                 }
                 else{
-                bins <- seq(min(plot_data), max(plot_data), length.out = input$Hist1_bins + 1)
-                return(hist(plot_data,
-                            breaks = bins,
-                            col = "#75AADB",
-                            border = "blue",
-                            xlab = "Voltaje",
-                            ylab = "Frecuencia",
-                            main = "Histograma de Voltaje"))
+                    hplot <- ggplot(plot_data, aes(x=Value, fill = Quantity)) + 
+                           geom_density(alpha = 0.6) +
+                           geom_vline(data=lineas, aes(xintercept=v, color=Quantity), size = 2)
+                    
+                    return(hplot)
                 }
             }
         })
-
+        
+        ##########################################################################################
+        ## Voltage Box Plot
         output$box_volt <- renderPlot({
             if (is.null(meter_data())){
                 return (NULL)
