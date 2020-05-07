@@ -163,15 +163,62 @@ meter_classes <- function(meters){
   return(meters_class)
 }
 
-quantity_class<- function(quntities){
-  quant_class <- case_when(grepl("^V(ab|bc|ca)$", quntities) ~ "Vline",
-                           grepl("^V(an|bn|cn)", quntities) ~ "Vphase",
-                           grepl("^(Rea|A)ctive Power$", quntities) ~ "Power",
-                           grepl("^Power Factor (Lagging|Leading) (AVG|MAX)$", quntities) ~ "Power Factor",
-                           grepl("^Voltage Unbalance (AVG|MAX)$", quntities) ~ "Vunbalance",
-                           grepl("^Current I[ABC] THD (AVG|MAX)$", quntities) ~ "I THD",
-                           grepl("^Voltage V[123] THD (AVG|MAX)$", quntities) ~ "V THD",
-                           TRUE ~ "None"
-                           )
-  return(quant_class)
-}
+### constant table for fast clasification of variables
+
+quant_classes <- data.frame(Quantity = c("Vab", 
+                                         "Vbc", 
+                                         "Vca", 
+                                         "Van", 
+                                         "Vbn", 
+                                         "Vcn",
+                                         "Reactive Power", 
+                                         "Active Power",
+                                         "Power Factor Lagging AVG",
+                                         "Power Factor Lagging MAX",
+                                         "Power Factor Leading AVG",
+                                         "Power Factor Leading MAX",
+                                         "Voltage Unbalance AVG", 
+                                         "Voltage Unbalance MAX",
+                                         "Current IA THD AVG",
+                                         "Current IB THD AVG",
+                                         "Current IC THD AVG",
+                                         "Current IA THD MAX",
+                                         "Current IB THD MAX",
+                                         "Current IC THD MAX",
+                                         "Voltage V1 THD AVG",
+                                         "Voltage V2 THD AVG",
+                                         "Voltage V3 THD AVG",
+                                         "Voltage V1 THD MAX",
+                                         "Voltage V2 THD MAX",
+                                         "Voltage V3 THD MAX"))
+
+
+quant_classes$Quant_class <-  c("Vline", 
+                                "Vline", 
+                                "Vline", 
+                                "Vphase", 
+                                "Vphase", 
+                                "Vphase",
+                                "Power",
+                                "Power",
+                                "Power Factor",
+                                "Power Factor",
+                                "Power Factor",
+                                "Power Factor",
+                                "Vunbalance",
+                                "Vunbalance",
+                                "I THD",
+                                "I THD",
+                                "I THD",
+                                "I THD",
+                                "I THD",
+                                "I THD",
+                                "V THD",
+                                "V THD",
+                                "V THD",
+                                "V THD",
+                                "V THD",
+                                "V THD")
+  
+quant_classes$Quant_class <- factor(quant_classes$Quant_class)
+quant_classes$Quantity <- factor(quant_classes$Quantity)

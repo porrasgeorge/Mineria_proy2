@@ -4,9 +4,9 @@ library(ggplot2)
 library(dplyr) 
 library(tidyr)
 library(scales)
-library(openxlsx)
+##library(openxlsx)
 library(DT)
-library(shinythemes)
+##library(shinythemes)
 source("DB.R")
 source("methods.R")
 
@@ -17,11 +17,11 @@ start_dateCR <- end_dateCR - weeks(1)
 dataLog  <- read_feather("featherFiles/dataLog_big.feather")
 
 coop_mets <- dataLog %>%
-    distinct(Cooperative, Type, Meter, Quantity)%>%
-    arrange(Cooperative, Type, Meter, Quantity)
+    distinct(Cooperative, Type, Meter, Quant_class, Quantity) %>%
+    arrange(Cooperative, Type, Meter, Quant_class, Quantity)
 
 ################################################################################################
-ui <- fluidPage(theme = shinytheme("united"),
+ui <- fluidPage( ##theme = shinytheme("united"),
     tags$head(HTML("<title>CDC Conelectricas</title> <link rel='icon' type='image/gif/png' href='ConeLogo.jpg'>")), 
     h4("Filtros:"),
     
@@ -80,7 +80,6 @@ ui <- fluidPage(theme = shinytheme("united"),
                                      align="center",
                                      br(),
                                      column(3,
-                                            
                                             sliderInput(inputId = "Hist1_minV",
                                                         label = "Voltaje Minimo",
                                                         min = 0,
@@ -149,7 +148,7 @@ server <- function(input, output, session) {
     
 
     observeEvent( meter_data(), {
-        print("meter_data va a ser modificada")
+##        print("meter_data va a ser modificada")
         in_data <- meter_data()$Value
         if (length(in_data) >10){
             min_val = round(min(in_data), -2)
@@ -166,7 +165,7 @@ server <- function(input, output, session) {
                               max = max_val,
                               value = min_val)
         }
-        print("meter_data ha sido modificada")
+##        print("meter_data ha sido modificada")
     })
     
     meter_data <- reactive({

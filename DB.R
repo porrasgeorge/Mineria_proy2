@@ -104,7 +104,9 @@ DB_getDataSaveFile <- function(){
   
   meters_class  <- meter_classes(dataLog$Meter)
   dataLog <- dataLog %>% left_join(meters_class, by = "Meter")
-  dataLog$Quant_Group <- quantity_class(dataLog$Quantity)
+  dataLog <- dataLog %>% left_join(quant_classes, by = "Quantity")
+  
+  
   rm(quantities, quantity, source_ids, quantity_ids, meters_class)
   ## write_feather(dataLog, "featherFiles/dataLog_big.feather")
 }
