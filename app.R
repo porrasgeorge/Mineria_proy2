@@ -20,6 +20,8 @@ coop_mets <- dataLog %>%
     distinct(Cooperative, Type, Meter, Quant_class, Quantity) %>%
     arrange(Cooperative, Type, Meter, Quant_class, Quantity)
 
+glimpse(coop_mets)
+
 ################################################################################################
 ui <- fluidPage( ##theme = shinytheme("united"),
     tags$head(HTML("<title>CDC Conelectricas</title> <link rel='icon' type='image/gif/png' href='ConeLogo.jpg'>")), 
@@ -63,18 +65,18 @@ ui <- fluidPage( ##theme = shinytheme("united"),
                img(src='ConeLogo.jpg', style="display: block; margin-left: auto; margin-right: auto; width: 75px; height: 75px")
         )
     ), ## fin de fluid row
-    
-    
+
+    ### Inicio de los tabs
     
     tabsetPanel(type = "tab",
                 tabPanel("Voltaje",
                          br(),
                 tabsetPanel(type = "tab",
-                            tabPanel("Resumen de datos",
+                            tabPanel("Datos",
+                                     br(),
                                      textOutput("message_text"),
-                                     textOutput("message_text_V")
-                                     ),
-                            tabPanel("Tabla Original" ,
+                                     textOutput("message_text_V"),
+                                     hr(),
                                      DTOutput('full_Table')),
                             tabPanel("Densidad",
                                      align="center",
@@ -139,12 +141,15 @@ server <- function(input, output, session) {
     
     observeEvent(input$type_si,
                  updateSelectInput(session, "source_si", label='Medidor', 
-                                   choices = coop_mets$Meter[(coop_mets$Type == input$type_si) & (coop_mets$Cooperative == input$coop_si)]))
-    
-    
+                                   choices = coop_mets$Meter[(coop_mets$Type == input$type_si) & 
+                                                                 (coop_mets$Cooperative == input$coop_si)]))
     observeEvent(input$source_si,
                  updateSelectInput(session, "quant_type", label='Variable', 
-                                   choices = group_VoltagesName(coop_mets$Quantity[coop_mets$Meter == input$source_si])))
+                                   choices = coop_mets$Quant_class[(coop_mets$Type == input$type_si) & 
+                                                                 (coop_mets$Cooperative == input$coop_si) & 
+                                                                 (coop_mets$Meter == input$source_si)]))
+    
+                                   ##choices = group_VoltagesName(coop_mets$Quantity[coop_mets$Meter == input$source_si])))
     
 
     observeEvent( meter_data(), {
@@ -169,7 +174,13 @@ server <- function(input, output, session) {
     })
     
     meter_data <- reactive({
-        return(filter_DataDataSelection(dataLog, input$source_si, input$daterange, input$quant_type))
+        quantities_filtered <- coop_mets$Quantity[(coop_mets$Type == input$type_si) & 
+                                                 (coop_mets$Cooperative == input$coop_si) & 
+                                                     (coop_mets$Meter == input$source_si)& 
+                                                     (coop_mets$Quant_class == input$quant_type)]
+        return(filter_DataDataSelection(dataLog, input$source_si, input$daterange, quantities_filtered))
+        
+##        return(filter_DataDataSelection(dataLog, input$source_si, input$daterange, input$quant_type))
     })
     
     t_Nominal <- reactive({
@@ -227,11 +238,13 @@ server <- function(input, output, session) {
                 in_table$Cooperative <- NULL
                 in_table$Type <- NULL
                 in_table$Meter <- NULL
+                in_table$
+                col_numb <- ncol(in_table)
                 return(in_table)
             },
             filter = "none",
             selection = "none", 
-            options = list(pageLength = 15, columnDefs = list(list(className = 'dt-center', targets = 1:4)))
+            options = list(pageLength = 15, columnDefs = list(list(className = 'dt-center', targets = "_all")))
             )
 
         ##########################################################################################

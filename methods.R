@@ -1,13 +1,13 @@
-filter_DataDataSelection <- function(dataToFilter, Source, dateRange, quantType){
+filter_DataDataSelection <- function(dataToFilter, Source, dateRange, quantities){
   print("Filter_DataDataSelection called ...")
-  
-  quantities <- vector()
-  if (quantType == "Vline"){
-    quantities <- c('Vab', 'Vbc', 'Vca')
-  }
-  else if (quantType == "Vphase"){
-    quantities <- c('Van', 'Vbn', 'Vcn')
-  }
+
+  # quantities <- vector()
+  # if (quantType == "Vline"){
+  #   quantities <- c('Vab', 'Vbc', 'Vca')
+  # }
+  # else if (quantType == "Vphase"){
+  #   quantities <- c('Van', 'Vbn', 'Vcn')
+  # }
   
   lineV <- dataToFilter %>% 
     filter(Meter == Source,
@@ -19,8 +19,8 @@ filter_DataDataSelection <- function(dataToFilter, Source, dateRange, quantType)
   lineV$TimestampCR <- format(lineV$TimestampCR,'%d-%m-%Y %H:%M')
   
   lineV <- lineV %>% arrange(TimestampCR, Quantity)
-  lineV$Value <- as.integer(lineV$Value)
-   
+  lineV$Value <- round(lineV$Value, 1)
+
   print("Filter_DataDataSelection OK ...")
   return(lineV)
 }
@@ -61,21 +61,18 @@ voltage_Summary <- function(data, t_Nom){
   print("voltage_Summary OK ...")
   return(voltage_table)
 }
-
-
-
-
-group_VoltagesName <- function(volt_list){
-  print("group_VoltagesName called ...")
-  volt_group <- vector()
-  if ("Vab" %in% volt_list){
-    volt_group <- c(volt_group, "Vline")
-  }
-  if ("Van" %in% volt_list){
-    volt_group <- c(volt_group, "Vphase")
-  }
-  return(volt_group)
-}
+# 
+# group_VoltagesName <- function(volt_list){
+#   print("group_VoltagesName called ...")
+#   volt_group <- vector()
+#   if ("Vab" %in% volt_list){
+#     volt_group <- c(volt_group, "Vline")
+#   }
+#   if ("Van" %in% volt_list){
+#     volt_group <- c(volt_group, "Vphase")
+#   }
+#   return(volt_group)
+# }
 
 
 guess_Nominal <- function(var_values){
