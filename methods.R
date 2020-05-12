@@ -1,21 +1,13 @@
-filter_DataDataSelection <- function(dataToFilter, Source, dateRange, quantities){
+filter_DataDataSelection <- function(dataToFilter, Source, dateRange){  ###, quantities){
   print("Filter_DataDataSelection called ...")
 
-  # quantities <- vector()
-  # if (quantType == "Vline"){
-  #   quantities <- c('Vab', 'Vbc', 'Vca')
-  # }
-  # else if (quantType == "Vphase"){
-  #   quantities <- c('Van', 'Vbn', 'Vcn')
-  # }
-  
   lineV <- dataToFilter %>% 
     filter(Meter == Source,
-           Quantity %in% quantities, 
+           ##Quantity %in% quantities, 
            TimestampCR >= dateRange[1], 
            TimestampCR < dateRange[2])
   
-  lineV$Quantity <- factor(lineV$Quantity, levels = quantities)
+  lineV$Quantity <- factor(lineV$Quantity)
   lineV$TimestampCR <- format(lineV$TimestampCR,'%d-%m-%Y %H:%M')
   
   lineV <- lineV %>% arrange(TimestampCR, Quantity)
@@ -51,7 +43,6 @@ voltage_Summary <- function(data, t_Nom){
   
   voltage_DF$Classif <- factor(voltage_DF$Classif, levels = list("TN087", "TN087_091", "TN091_093", "TN093_095", "TN095_105", "TN105_107", "TN107_109", "TN109_113", "TN113"))
   voltage_table <- as.data.frame(table(voltage_DF$Classif, voltage_DF$Quantity, dnn = c("Classif", "Quantity")))
-  
   countsV <- voltage_table %>% group_by(Quantity) %>%
     summarise(CountSum = sum(Freq))
   
@@ -79,11 +70,13 @@ guess_Nominal <- function(var_values){
   print("guess_Nominal called ...")
   var_values <- var_values[var_values >100]
   avg <- mean(var_values)
-  Nominal = case_when(avg < 16000 ~ 14376,
+  Nominal = case_when(avg < 10000 ~ 0,
+                      avg < 16000 ~ 14376,
                       avg < 23000 ~ 20207,
                       avg < 29000 ~ 24900,
                       TRUE ~ 35000
   )
+  print("guess_Nominal DONE ...")
   return(Nominal)
 }
 
@@ -91,7 +84,7 @@ guess_Nominal <- function(var_values){
 
 create_Percent_Table <- function(dataLog_table, t_Nom){
   print("create_Percent_Table called ...")
-  dataLog_table$Perc <- label_percent(accuracy = 0.01)(dataLog_table$Perc)
+  dataLog_table$Perc <- scales::label_percent(accuracy = 0.01)(dataLog_table$Perc)
   dataLog_table$Freq <- as.integer(dataLog_table$Freq)
   
   tensiones <- c(t_Nom, 0.87*t_Nom, 0.91*t_Nom,0.93*t_Nom,0.95*t_Nom,1.05*t_Nom,1.07*t_Nom,1.09*t_Nom,1.13*t_Nom)

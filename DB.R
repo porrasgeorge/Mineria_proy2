@@ -9,12 +9,12 @@ DB_getDataSaveFile <- function(){
 
   final_dateCR <- floor_date(now(), "day") ## corte hasta hoy
   #initial_dateCR <- final_dateCR - months(6) ## 3 meses hacia atras 
-  initial_dateCR <- final_dateCR - months(6) ## 3 meses hacia atras 
+  initial_dateCR <- final_dateCR - months(2) ## 3 meses hacia atras 
 
   initial_date <- with_tz(initial_dateCR, tzone = "UTC") 
   final_date <- with_tz(final_dateCR, tzone = "UTC")
   
-  channel <- odbcConnect("SQL_ION", uid="sa", pwd="Con3$adm.")
+  channel <- odbcConnect("SQL_ION", uid="R", pwd="Con3$adm.")
   sources <- sqlQuery(channel , "select top 1000 ID, Name from Source")
   sources <- sources %>% 
     separate(Name, c("Cooperative", "Meter"), "\\.") %>%
@@ -108,7 +108,7 @@ DB_getDataSaveFile <- function(){
   
   
   rm(quantities, quantity, source_ids, quantity_ids, meters_class)
-  ## write_feather(dataLog, "featherFiles/dataLog_big.feather")
+  ## write_feather(dataLog, "featherFiles/dataLog_big2.feather")
 }
 
 
