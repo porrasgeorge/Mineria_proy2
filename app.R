@@ -19,6 +19,7 @@ coop_mets <- dataLog %>%
     arrange(Cooperative, Type, Meter, Quant_class, Quantity)
 
 ################################################################################################
+
 ui <- fluidPage( ##theme = shinytheme("united"),
     tags$head(HTML("<title>CDC Conelectricas</title> <link rel='icon' type='image/gif/png' href='ConeLogo.jpg'>")), 
     h4("Filtros:"),
@@ -32,54 +33,63 @@ ui <- fluidPage( ##theme = shinytheme("united"),
                               format = "dd/mm/yyyy",
                               startview = 'Week', 
                               language = 'es', 
-                              weekstart = 1)
+                              weekstart = 1,
+                              width = "100%")
         ),
-        column(3, 
+        column(2, 
                selectInput(inputId = 'coop_si',
                            label='Cooperativa',
-                           choices= unique(coop_mets$Cooperative))
+                           choices= unique(coop_mets$Cooperative),
+                           width = "100%")
         ),
-        column(3, 
+        column(2, 
                selectInput(inputId = 'type_si',
                            label='Tipo',
                            choices="",
-                           selected = "")
+                           selected = "",
+                           width = "100%")
         ),
-        column(3, 
+        column(2, 
                selectInput(inputId = 'source_si',
                            label='Medidor',
                            choices="",
-                           selected = "")
-        ),
-        # column(3, 
-        #        selectInput(inputId = "quant_type", 
-        #                    label="Variable", 
-        #                    choices = "", 
-        #                    selected = "")
-        # ),
-        column(3,
-               br(),
-               actionButton("go", "Go!")
-        ),
-        column(1,
-               img(src='ConeLogo.jpg', style="display: block; margin-left: auto; margin-right: auto; width: 75px; height: 75px")
+                           selected = "",
+                           width = "100%")
         )
+
     ), ## fin de fluid row
+    hr(),
  
     ### Inicio de los tabs
     
     tabsetPanel(type = "tab",
+                tabPanel("Vline",
+                         htmlOutput("Vline_NODATA"),
+                         DTOutput('Vline_DataTable'),
+                        hr(),
+                        column(3,
+                               #uiOutput(outputId = "Box_minVline"),
+                               sliderInput(inputId = "Box_minVline",
+                                           label = "Voltaje Minimo (Gráficos)",
+                                           min = 0,
+                                           max = 35000,
+                                           value = 0)
+                                ),
+                               plotOutput("box_Vline"),
+                               hr(),
+                               plotOutput("dens_Vline")
+                               ),
+
                 tabPanel("Vphase",
                          # br(),
-                         textOutput("Vphase_NODATA"),
+                         htmlOutput("Vphase_NODATA"),
                          # textOutput("message_text_V"),
                          #hr(),
                          DTOutput('Vphase_DataTable'),
                          hr(),
                          column(3,
-                                
                                 sliderInput(inputId = "Box_minVphase",
-                                            label = "Eliminar Valores menores a:",
+                                            label = "Voltaje Minimo (Gráficos)",
                                             min = 0,
                                             max = 35000,
                                             value = 0)
@@ -89,36 +99,6 @@ ui <- fluidPage( ##theme = shinytheme("united"),
                          plotOutput("dens_Vphase")
                          ),
                 
-                tabPanel("Vline",
-                         DTOutput('Vline_DataTable')),
-                
-                tabPanel("Densidad",
-                         align="center",
-                         br(),
-                         column(3,
-                                sliderInput(inputId = "Hist1_minV",
-                                            label = "Voltaje Minimo",
-                                            min = 0,
-                                            max = 35000,
-                                            value = 0)
-                                ),
-                         plotOutput("volt_dens")
-                         ),
-                tabPanel("Boxplot",
-                         align="center",
-                         br(),
-        
-                         column(3,
-        
-                                sliderInput(inputId = "Box_minV",
-                                            label = "Eliminar Valores menores a:",
-                                            min = 0,
-                                            max = 35000,
-                                            value = 0)
-                         ),
-                         plotOutput("box_volt")
-                ),
-        
                 tabPanel("Clasificación",
                          align="center",
                          ## h4("Tabla"),
@@ -152,15 +132,12 @@ server <- function(input, output, session) {
                                    choices = coop_mets$Meter[(coop_mets$Type == input$type_si) & 
                                                                  (coop_mets$Cooperative == input$coop_si)])
                  })
-    # observeEvent(input$source_si,
-    #              updateSelectInput(session, "quant_type", label='Variable', 
-    #                                choices = coop_mets$Quant_class[(coop_mets$Type == input$type_si) & 
-    #                                                              (coop_mets$Cooperative == input$coop_si) & 
-    #                                                              (coop_mets$Meter == input$source_si)]))
+# 
+#     meter_data <- eventReactive(input$go, {
+#         return(filter_DataDataSelection(dataLog, input$source_si, input$daterange))
+#     })
     
-                                   ##choices = group_VoltagesName(coop_mets$Quantity[coop_mets$Meter == input$source_si])))
-
-    meter_data <- eventReactive(input$go, {
+    meter_data <- reactive({
         return(filter_DataDataSelection(dataLog, input$source_si, input$daterange))
     })
         
@@ -173,29 +150,44 @@ server <- function(input, output, session) {
         data <- meter_data() %>% filter(Quant_class == "Vline")
         return(data)
     })
- 
-    
-    
- ## Actualizar los Input Sliders      
+
+####################################################################################################
+## Actualizar los Input Sliders      
+
     observeEvent( Vphase_Data(), {
         print("meter_data va a ser modificada")
         in_data <- Vphase_Data()$Value
-        if (length(in_data) >10){
+        if (length(in_data) > 2){
             min_val = plyr::round_any(min(in_data), 100, f = floor)
             max_val = plyr::round_any((min_val +(max(in_data) - min_val)*0.95), 100,  f = floor)
             updateSliderInput(session, inputId = "Box_minVphase",
-                              label = "Voltaje Minimo",
+                              label = "Voltaje Minimo (Gráficos)",
                               min = min_val,
                               max = max_val,
                               value = min_val)
         }
-
-
-
        print("meter_data ha sido modificada")
- })
+       })
 
+    observeEvent( Vline_Data(), {
+        print("meter_data va a ser modificada")
+        in_data <- Vline_Data()$Value
+        if (length(in_data) > 2){
+            min_val = plyr::round_any(min(in_data), 100, f = floor)
+            max_val = plyr::round_any((min_val +(max(in_data) - min_val)*0.95), 100,  f = floor)
+            updateSliderInput(session, inputId = "Box_minVline",
+                              label = "Voltaje Minimo (Gráficos)",
+                              min = min_val,
+                              max = max_val,
+                              value = min_val)
+        }
+        print("meter_data ha sido modificada")
+    })
 
+    
+####################################################################################################
+## Calculo de tensiones nominales de linea y fase
+    
     Vphase_Nominal <- reactive({
         return(guess_Nominal(Vphase_Data()$Value))
     })
@@ -212,21 +204,30 @@ server <- function(input, output, session) {
     voltageTable <- reactive({
         return(voltage_Summary(meter_data(), t_Nominal()))
     })
-    
-    unbalance_table<- reactive({
-        return()
-    })
+
+####################################################################################################
+## Textos para cantidad de datos      
     
     output$Vphase_NODATA <- renderText({
         if (nrow(Vphase_Data()) < 2){
-            paste("No hay datos en el periodo seleccionado")
+            paste("<br><font color=\"#FF0000\"><h2>No hay datos en el periodo seleccionado</h2></font>")
         }
         else {
-            paste("Se tiene: ", nrow(Vphase_Data()), " datos")
+            paste("<br>Se tienen: ", "<font color=\"#FF0000\"><b>", nrow(Vphase_Data()), "</b></font>", " datos")
         }
     })
 
+    output$Vline_NODATA <- renderText({
+        if (nrow(Vline_Data()) < 2){
+            paste("<br><font color=\"#FF0000\"><h2>No hay datos en el periodo seleccionado</h2></font>")
+        }
+        else {
+            paste("<br>Se tienen: ", "<font color=\"#FF0000\"><b>", nrow(Vline_Data()), "</b></font>", " datos")
+        }
+    })    
     
+    
+   
     
     output$message_text_V <- renderText({
         paste("Voltage nominal detectado: ", t_Nominal(), "V")
@@ -314,7 +315,7 @@ server <- function(input, output, session) {
         
         
         
-                ##########################################################################################
+        ##########################################################################################
         ## Voltage Predefined Histogram
         output$histogram <- renderPlot({
             if (is.null(voltageTable())){
@@ -349,6 +350,27 @@ server <- function(input, output, session) {
             }
         })
         
+        output$dens_Vline <- renderPlot({
+            if (nrow(Vline_Data()) < 2){
+                return (NULL)
+            }
+            else {
+                in_data <- Vline_Data()
+                plot_data <- in_data[in_data$Value >= input$Box_minVline,]
+                lineas <- plot_data %>% group_by(Quantity) %>% summarise(v = mean(Value))
+                if (nrow(plot_data) <10){
+                    return(NULL)
+                }
+                else{
+                    hplot <- ggplot(plot_data, aes(x=Value, fill = Quantity)) + 
+                        geom_density(alpha = 0.6) +
+                        geom_vline(data=lineas, aes(xintercept=v, color=Quantity), size = 2)
+                    
+                    return(hplot)
+                }
+            }
+        })
+        
         ##########################################################################################
         ## Voltage Box Plot
         output$box_Vphase <- renderPlot({
@@ -368,22 +390,23 @@ server <- function(input, output, session) {
             }
         })
         
+        output$box_Vline <- renderPlot({
+            if (nrow(Vline_Data()) < 2){
+                return (NULL)
+            }
+            else {
+                plot_data <- Vline_Data() %>% filter (Value >= as.numeric(input$Box_minVline))
+                if (nrow(plot_data) <10){
+                    return(NULL)
+                }
+                else{
+                    bp <- ggplot(plot_data, aes(Quantity, Value)) + 
+                        geom_boxplot(aes(colour = Quantity))
+                    return(bp)
+                }
+            }
+        })
+        
 
-###################################################################################### downloads
-#         output$downloadData <- downloadHandler(
-#             filename = function() {
-#                 paste(selected_sourceName_reactive(), ".xlsx", sep = "")
-#             },
-#             content = function(file) {
-#                 saveWorkbook(create_Excel_file(create_Percent_Table(IonData_LineV(),
-#                                                                     tensiones),
-#                                                selected_sourceName_reactive()),
-#                              file = file,
-#                              overwrite = TRUE)
-#             }
-#             )
-
-    ##output$message_text <- renderText(paste(input$selected_source, " -- "))
-    ##output$table <- renderTable(IonData_LineV())
         }
 shinyApp (ui = ui, server = server)
