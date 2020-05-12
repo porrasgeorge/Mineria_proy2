@@ -102,7 +102,8 @@ ui <- fluidPage( ##theme = shinytheme("united"),
                 tabPanel("Clasificación",
                          align="center",
                          ## h4("Tabla"),
-                         tableOutput('table')),
+                         tableOutput('Vphase_table'),
+                         tableOutput('Vline_table')),
         
                 tabPanel("Histograma de Clasificación",
                          plotOutput("histogram"))
@@ -150,7 +151,33 @@ server <- function(input, output, session) {
         data <- meter_data() %>% filter(Quant_class == "Vline")
         return(data)
     })
-
+ 
+    
+    
+    
+    ####################################################################################################
+    ## Calculo de tensiones nominales de linea y fase
+    
+    Vphase_Nominal <- reactive({
+        return(guess_Nominal(Vphase_Data()$Value))
+    })
+    
+    Vline_Nominal <- reactive({
+        return(guess_Nominal(Vline_Data()$Value))
+    })
+    
+    
+    ####################################################################################################
+    ## para las tablas de tensiones clasificadas del 90 al 110%
+    
+    Vphase_DataTable <- reactive({
+        return(voltage_Summary(Vphase_Data(), Vphase_Nominal()))
+    }) 
+    
+    Vline_DataTable <- reactive({
+        return(voltage_Summary(Vline_Data(), Vline_Nominal()))
+    })
+    
 ####################################################################################################
 ## Actualizar los Input Sliders      
 
@@ -184,26 +211,6 @@ server <- function(input, output, session) {
         print("meter_data ha sido modificada")
     })
 
-    
-####################################################################################################
-## Calculo de tensiones nominales de linea y fase
-    
-    Vphase_Nominal <- reactive({
-        return(guess_Nominal(Vphase_Data()$Value))
-    })
-    
-    Vline_Nominal <- reactive({
-        return(guess_Nominal(Vline_Data()$Value))
-    })
-
-    
-    
-    
-    
-        
-    voltageTable <- reactive({
-        return(voltage_Summary(meter_data(), t_Nominal()))
-    })
 
 ####################################################################################################
 ## Textos para cantidad de datos      
@@ -227,11 +234,11 @@ server <- function(input, output, session) {
     })    
     
     
-   
-    
-    output$message_text_V <- renderText({
-        paste("Voltage nominal detectado: ", t_Nominal(), "V")
-    })
+    # 
+    # 
+    # output$message_text_V <- renderText({
+    #     paste("Voltage nominal detectado: ", t_Nominal(), "V")
+    # })
 
     
     
@@ -249,13 +256,12 @@ server <- function(input, output, session) {
 ###################################################################################### Table
 ## Tablas
     
-        output$table <- renderTable(
-            if (is.null(voltageTable())){
+        output$Vphase_table <- renderTable(
+            if (nrow(Vphase_Data()) < 2){
                 return (NULL)
             }
             else {
-                create_Percent_Table(voltageTable(), t_Nominal())
-                
+                voltage_Summary(Vphase_Data(), Vphase_Nominal())
             },
             digits = 0,
             striped = TRUE,
@@ -264,8 +270,23 @@ server <- function(input, output, session) {
             width = '100%',
             align = 'c'
             )
+        
+        output$Vline_table <- renderTable(
+            if (nrow(Vline_Data()) < 2){
+                return (NULL)
+            }
+            else {
+                voltage_Summary(Vline_Data(), Vline_Nominal())
+            },
+            digits = 0,
+            striped = TRUE,
+            hover = TRUE,
+            ##bordered = TRUE,
+            width = '100%',
+            align = 'c'
+        )
 
-    ## Phase Voltage Table
+    ## Phase Voltage Table (Full Table)
         output$Vphase_DataTable <- renderDT({
             if (nrow(Vphase_Data()) < 2){
                 shiny::showNotification("No data", type = "error")
@@ -288,7 +309,7 @@ server <- function(input, output, session) {
 
         
         
-        ## Line Voltage Table
+        ## Line Voltage Table (Full Table)
         output$Vline_DataTable <- renderDT({
             if (nrow(Vline_Data()) < 2){
                 shiny::showNotification("No data", type = "error")
@@ -312,6 +333,11 @@ server <- function(input, output, session) {
 
         
         
+        
+####################################################################################################
+## Tablas Sumarizadas por nivel de tension
+        
+       
         
         
         

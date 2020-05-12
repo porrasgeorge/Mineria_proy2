@@ -26,6 +26,9 @@ voltage_Summary <- function(data, t_Nom){
   if (nrow(data) == 0) {
     return (NULL)
   }
+  
+  data_factors <- unique(as.character(data$Quantity))
+  data$Quantity <- factor(data$Quantity, levels = data_factors)
 
   tensiones <- c(t_Nom, 0.87*t_Nom, 0.91*t_Nom,0.93*t_Nom,0.95*t_Nom,1.05*t_Nom,1.07*t_Nom,1.09*t_Nom,1.13*t_Nom)
   names(tensiones) <- c("Nom", "limit087" ,"limit091","limit093","limit095" ,"limit105" ,"limit107" ,"limit109" ,"limit113")
@@ -49,22 +52,29 @@ voltage_Summary <- function(data, t_Nom){
   voltage_table <- voltage_table %>% left_join(countsV, by = "Quantity")
   voltage_table$Perc <- if_else(voltage_table$CountSum == 0, 0, voltage_table$Freq/voltage_table$CountSum)
   
-  print("voltage_Summary OK ...")
-  return(voltage_table)
-}
-# 
-# group_VoltagesName <- function(volt_list){
-#   print("group_VoltagesName called ...")
-#   volt_group <- vector()
-#   if ("Vab" %in% volt_list){
-#     volt_group <- c(volt_group, "Vline")
-#   }
-#   if ("Van" %in% volt_list){
-#     volt_group <- c(volt_group, "Vphase")
-#   }
-#   return(volt_group)
-# }
+  
+  
+  voltage_table$Perc <- scales::label_percent(accuracy = 0.01)(voltage_table$Perc)
+  voltage_table$Freq <- as.integer(voltage_table$Freq)
+  t1 <- voltage_table %>% select(Classif, Quantity, Freq) %>% spread(Quantity, value = Freq, fill = 0)
+  t2 <- voltage_table %>% select(Classif, Quantity, Perc) %>% spread(Quantity, value = Perc, fill = 0)
+  t3 <- t1 %>% left_join(t2, by = "Classif")
+  rm(t1, t2)
+  t3$Lim_Inferior <- c(0, tensiones["limit087"], tensiones["limit091"], tensiones["limit093"], tensiones["limit095"], tensiones["limit105"], tensiones["limit107"], tensiones["limit109"], tensiones["limit113"])
+  t3$Lim_Superior <- c(tensiones["limit087"], tensiones["limit091"], tensiones["limit093"], tensiones["limit095"], tensiones["limit105"], tensiones["limit107"], tensiones["limit109"], tensiones["limit113"], 100000)
+  
+  if(ncol(t3) == 5){
+    t3 <- t3[,c(1, 4, 5, 2, 3)]
+    colnames(t3) <- c("Clasificacion", "Lim_Inferior", "Lim_Superior", "Cantidad_Vab", "Porcent_Vab")
+  }
+  else{
+    t3 <- t3[,c(1, 8, 9, 2, 5, 3 , 6, 4, 7)]
+    colnames(t3) <- c("Clasificacion", "Lim_Inferior", "Lim_Superior", "Cantidad_Vab", "Porcent_Vab", "Cantidad_Vbc", "Porcent_Vbc", "Cantidad_Vca", "Porcent_Vca")
+  }
 
+  print("voltage_Summary OK ...")
+  return(t3)
+}
 
 guess_Nominal <- function(var_values){
   print("guess_Nominal called ...")
@@ -81,52 +91,53 @@ guess_Nominal <- function(var_values){
 }
 
 
-
-create_Percent_Table <- function(dataLog_table, t_Nom){
-  print("create_Percent_Table called ...")
-  dataLog_table$Perc <- scales::label_percent(accuracy = 0.01)(dataLog_table$Perc)
-  dataLog_table$Freq <- as.integer(dataLog_table$Freq)
-  
-  tensiones <- c(t_Nom, 0.87*t_Nom, 0.91*t_Nom,0.93*t_Nom,0.95*t_Nom,1.05*t_Nom,1.07*t_Nom,1.09*t_Nom,1.13*t_Nom)
-  names(tensiones) <- c("Nom", "limit087" ,"limit091","limit093","limit095" ,"limit105" ,"limit107" ,"limit109" ,"limit113")
-  
-  t1 <- dataLog_table %>% select(Classif, Quantity, Freq) %>% spread(Quantity, value = Freq, fill = 0)
-  t2 <- dataLog_table %>% select(Classif, Quantity, Perc) %>% spread(Quantity, value = Perc, fill = 0)
-  t3 <- t1 %>% left_join(t2, by = "Classif")
-  rm(t1, t2)
-  t3$Lim_Inferior <- c(0, tensiones["limit087"], tensiones["limit091"], tensiones["limit093"], tensiones["limit095"], tensiones["limit105"], tensiones["limit107"], tensiones["limit109"], tensiones["limit113"])
-  t3$Lim_Superior <- c(tensiones["limit087"], tensiones["limit091"], tensiones["limit093"], tensiones["limit095"], tensiones["limit105"], tensiones["limit107"], tensiones["limit109"], tensiones["limit113"], 100000)
-  t3 <- t3[,c(1, 8, 9, 2, 5, 3 , 6, 4, 7)]
-  colnames(t3) <- c("Clasificacion", "Lim_Inferior", "Lim_Superior", "Cantidad_Vab", "Porcent_Vab", "Cantidad_Vbc", "Porcent_Vbc", "Cantidad_Vca", "Porcent_Vca")  
-  
-  return(t3)
-}
-
-create_Histo_Plot <- function(IonData_V, title){
-  p <- ggplot(IonData_V, aes(x = Classif, y = Perc, label = Perc, fill = Quantity )) +
-    geom_col(position = "dodge", width = 0.7) +
-    scale_y_continuous(labels = function(x) paste0(100*x, "%"), limits = c(0, 1.2)) +
-    geom_text(aes(label=sprintf("%0.2f%%", 100*Perc)), 
-              position = position_dodge(0.9), 
-              angle = 90, size = 3) + 
-    theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8)) +
-    ggtitle(title) +
-    xlab("Medicion") + 
-    ylab("Porcentaje")
-  
-  return(p)
-}
-
-create_Excel_file <- function(table, ws_name){
-  print("create_Excel_file called ...")
-  wb <- createWorkbook()
-  addWorksheet(wb, ws_name)
-  setColWidths(wb, ws_name, cols = c(1:10), widths = c(20, rep(15, 9) ))
-  writeDataTable(wb, ws_name, x = table, startRow = 1, rowNames = F, tableStyle = "TableStyleMedium1")
-  return(wb)
-  
-  
-}
+# 
+# create_Percent_Table <- function(dataLog_table, t_Nom){
+#   print("create_Percent_Table called ...")
+#   browser()
+#   dataLog_table$Perc <- scales::label_percent(accuracy = 0.01)(dataLog_table$Perc)
+#   dataLog_table$Freq <- as.integer(dataLog_table$Freq)
+#   
+#   tensiones <- c(t_Nom, 0.87*t_Nom, 0.91*t_Nom,0.93*t_Nom,0.95*t_Nom,1.05*t_Nom,1.07*t_Nom,1.09*t_Nom,1.13*t_Nom)
+#   names(tensiones) <- c("Nom", "limit087" ,"limit091","limit093","limit095" ,"limit105" ,"limit107" ,"limit109" ,"limit113")
+#   
+#   t1 <- dataLog_table %>% select(Classif, Quantity, Freq) %>% spread(Quantity, value = Freq, fill = 0)
+#   t2 <- dataLog_table %>% select(Classif, Quantity, Perc) %>% spread(Quantity, value = Perc, fill = 0)
+#   t3 <- t1 %>% left_join(t2, by = "Classif")
+#   rm(t1, t2)
+#   t3$Lim_Inferior <- c(0, tensiones["limit087"], tensiones["limit091"], tensiones["limit093"], tensiones["limit095"], tensiones["limit105"], tensiones["limit107"], tensiones["limit109"], tensiones["limit113"])
+#   t3$Lim_Superior <- c(tensiones["limit087"], tensiones["limit091"], tensiones["limit093"], tensiones["limit095"], tensiones["limit105"], tensiones["limit107"], tensiones["limit109"], tensiones["limit113"], 100000)
+#   t3 <- t3[,c(1, 8, 9, 2, 5, 3 , 6, 4, 7)]
+#   colnames(t3) <- c("Clasificacion", "Lim_Inferior", "Lim_Superior", "Cantidad_Vab", "Porcent_Vab", "Cantidad_Vbc", "Porcent_Vbc", "Cantidad_Vca", "Porcent_Vca")  
+#   
+#   return(t3)
+# }
+# 
+# create_Histo_Plot <- function(IonData_V, title){
+#   p <- ggplot(IonData_V, aes(x = Classif, y = Perc, label = Perc, fill = Quantity )) +
+#     geom_col(position = "dodge", width = 0.7) +
+#     scale_y_continuous(labels = function(x) paste0(100*x, "%"), limits = c(0, 1.2)) +
+#     geom_text(aes(label=sprintf("%0.2f%%", 100*Perc)), 
+#               position = position_dodge(0.9), 
+#               angle = 90, size = 3) + 
+#     theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 8)) +
+#     ggtitle(title) +
+#     xlab("Medicion") + 
+#     ylab("Porcentaje")
+#   
+#   return(p)
+# }
+# 
+# create_Excel_file <- function(table, ws_name){
+#   print("create_Excel_file called ...")
+#   wb <- createWorkbook()
+#   addWorksheet(wb, ws_name)
+#   setColWidths(wb, ws_name, cols = c(1:10), widths = c(20, rep(15, 9) ))
+#   writeDataTable(wb, ws_name, x = table, startRow = 1, rowNames = F, tableStyle = "TableStyleMedium1")
+#   return(wb)
+#   
+#   
+# }
 
 meter_classes <- function(meters){
   meters_class <- as.data.frame(unique(meters), nm = ("Meter"))
