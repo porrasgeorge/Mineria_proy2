@@ -8,6 +8,9 @@ library(DT)
 source("DB.R")
 source("methods.R")
 
+################################################################################################
+## Declaracion de Variables
+
 end_dateCR <- floor_date(now(), "week", week_start = 1)
 start_dateCR <- end_dateCR - weeks(1)
 
@@ -24,6 +27,8 @@ ui <- fluidPage( ##theme = shinytheme("united"),
     tags$head(HTML("<title>CDC Conelectricas</title> <link rel='icon' type='image/gif/png' href='ConeLogo.jpg'>")), 
     h4("Filtros:"),
     
+    ####################################################################################################
+    ## Menues
     fluidRow(
         column(3,
                dateRangeInput("daterange", "Rango de Fecha",
@@ -59,15 +64,21 @@ ui <- fluidPage( ##theme = shinytheme("united"),
 
     ), ## fin de fluid row
     hr(),
- 
-    ### Inicio de los tabs
-    
+
+####################################################################################################
+## TABS
     tabsetPanel(type = "tab",
+                
+                ####################################################################################################
+                ## Tab de tension de Linea
                 tabPanel("Vline",
                          htmlOutput("Vline_NODATA"),
+                         tableOutput('Vline_table'),
+                         hr(),
                          DTOutput('Vline_DataTable'),
-                        hr(),
-                        column(3,
+                         hr(),
+                         column(3,
+                               
                                #uiOutput(outputId = "Box_minVline"),
                                sliderInput(inputId = "Box_minVline",
                                            label = "Voltaje Minimo (Gráficos)",
@@ -75,16 +86,19 @@ ui <- fluidPage( ##theme = shinytheme("united"),
                                            max = 35000,
                                            value = 0)
                                 ),
-                               plotOutput("box_Vline"),
-                               hr(),
-                               plotOutput("dens_Vline")
-                               ),
-
+                        plotOutput("box_Vline"),
+                        hr(),
+                        plotOutput("dens_Vline")
+                ),
+                
+                ####################################################################################################
+                ## Tab de tension de Fase
                 tabPanel("Vphase",
                          # br(),
                          htmlOutput("Vphase_NODATA"),
                          # textOutput("message_text_V"),
-                         #hr(),
+                         tableOutput('Vphase_table'),
+                         hr(),
                          DTOutput('Vphase_DataTable'),
                          hr(),
                          column(3,
@@ -97,15 +111,12 @@ ui <- fluidPage( ##theme = shinytheme("united"),
                          plotOutput("box_Vphase"),
                          hr(),
                          plotOutput("dens_Vphase")
-                         ),
+                ),
                 
-                tabPanel("Clasificación",
-                         align="center",
-                         ## h4("Tabla"),
-                         tableOutput('Vphase_table'),
-                         tableOutput('Vline_table')),
-        
-                tabPanel("Histograma de Clasificación",
+                ####################################################################################################
+                ## Tab de Armonicos de Tension
+                
+                tabPanel("Armonicos de Tensión",
                          plotOutput("histogram"))
                 ) ## tabsetPanel_2
     
@@ -233,29 +244,17 @@ server <- function(input, output, session) {
         }
     })    
     
-    
-    # 
-    # 
+
     # output$message_text_V <- renderText({
     #     paste("Voltage nominal detectado: ", t_Nominal(), "V")
     # })
 
+
+##########################################################################################
+## TABLES
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-###################################################################################### Table
-## Tablas
-    
+    ##########################################################################################
+    ## Phase Voltage Table (Resumed and classified)
         output$Vphase_table <- renderTable(
             if (nrow(Vphase_Data()) < 2){
                 return (NULL)
@@ -268,9 +267,13 @@ server <- function(input, output, session) {
             hover = TRUE,
             ##bordered = TRUE,
             width = '100%',
-            align = 'c'
+            align = 'c',
+            caption = "<h1>Voltajes de Fase</h1>",
+            caption.placement = "top"
             )
-        
+
+    ##########################################################################################
+    ## Line Voltage Table (Resumed and classified)
         output$Vline_table <- renderTable(
             if (nrow(Vline_Data()) < 2){
                 return (NULL)
@@ -283,9 +286,13 @@ server <- function(input, output, session) {
             hover = TRUE,
             ##bordered = TRUE,
             width = '100%',
-            align = 'c'
-        )
-
+            align = 'c',
+            caption = "<h1>Voltajes de Línea</h1>",
+            caption.placement = "top"
+            )
+    
+    
+    ##########################################################################################
     ## Phase Voltage Table (Full Table)
         output$Vphase_DataTable <- renderDT({
             if (nrow(Vphase_Data()) < 2){
@@ -304,12 +311,13 @@ server <- function(input, output, session) {
             },
             filter = "bottom",
             selection = "none",
+            caption = "Voltajes de Fase",
             options = list(pageLength = 10, columnDefs = list(list(className = 'dt-center', targets = "_all")))
             )
 
         
-        
-        ## Line Voltage Table (Full Table)
+    ##########################################################################################
+    ## Line Voltage Table (Full Table)
         output$Vline_DataTable <- renderDT({
             if (nrow(Vline_Data()) < 2){
                 shiny::showNotification("No data", type = "error")
@@ -328,18 +336,12 @@ server <- function(input, output, session) {
         },
         filter = "bottom",
         selection = "none",
+        caption = "Voltajes de Línea",
         options = list(pageLength = 10, columnDefs = list(list(className = 'dt-center', targets = "_all")))
         )
 
-        
-        
-        
-####################################################################################################
-## Tablas Sumarizadas por nivel de tension
-        
-       
-        
-        
+##########################################################################################
+## PLOTS  
         
         ##########################################################################################
         ## Voltage Predefined Histogram
@@ -354,7 +356,7 @@ server <- function(input, output, session) {
         })
 
         ##########################################################################################
-        ## Voltage Density Plot
+        ## Phase Voltage Density Plot
         output$dens_Vphase <- renderPlot({
             if (nrow(Vphase_Data()) < 2){
                 return (NULL)
@@ -376,6 +378,8 @@ server <- function(input, output, session) {
             }
         })
         
+        ##########################################################################################
+        ## Line Voltage Density Plot
         output$dens_Vline <- renderPlot({
             if (nrow(Vline_Data()) < 2){
                 return (NULL)
@@ -398,7 +402,7 @@ server <- function(input, output, session) {
         })
         
         ##########################################################################################
-        ## Voltage Box Plot
+        ## Phase Voltage Box Plot
         output$box_Vphase <- renderPlot({
             if (nrow(Vphase_Data()) < 2){
                 return (NULL)
@@ -415,7 +419,8 @@ server <- function(input, output, session) {
                 }
             }
         })
-        
+        ##########################################################################################
+        ## Line Voltage Box Plot
         output$box_Vline <- renderPlot({
             if (nrow(Vline_Data()) < 2){
                 return (NULL)
