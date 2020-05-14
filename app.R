@@ -149,8 +149,9 @@ ui <- fluidPage(
         ## Voltage Harmonics Tab
         tabPanel("Armonicos de Tensión",
                  htmlOutput("Vharm_NODATA"),
-                 DTOutput('Voltharm_DataTable'),
-
+                 plotOutput("plot_Vharm"),
+                 plotOutput('plot_Vharm_byHour'),
+                 DTOutput('Voltharm_DataTable')
                  )
     ) ## tabsetPanel
     
@@ -629,6 +630,48 @@ server <- function(input, output, session) {
                 return(bp)
             }
         }
+    })
+    
+    
+    ##########################################################################################
+    ## Voltage Harmonics Plot (Full Plot)
+    output$plot_Vharm<- renderPlot({
+        if (nrow(Vharm_Data()) < 2) {
+            return (NULL)
+        }
+        else{
+            plot_data <- Vharm_Data()
+            ggplot(data=plot_data, aes(x=TimestampCR, y=Value, group=Quantity)) +
+                geom_step(aes(color=Quantity), direction = 'vh') +
+                geom_hline(yintercept=5, 
+                           linetype="dashed", 
+                           color = "red", 
+                           size=2)
+        }
+        
+    })
+
+    ##########################################################################################
+    ## Voltage Harmonics Plot (Full Plot)
+    output$plot_Vharm_byHour<- renderPlot({
+        if (nrow(Vharm_Data()) < 2) {
+            return (NULL)
+        }
+        else{
+            plot_data <- Vharm_Data()
+            plot_data$TimestampCR <-  hms::as.hms(plot_data$TimestampCR)
+            plot_data <- plot_data %>% 
+                group_by(TimestampCR, Quantity) %>%
+                summarise(Value = mean(Value))
+            harm_plot <- ggplot(data=plot_data, aes(x=TimestampCR, y=Value, group=Quantity)) +
+                geom_step(aes(color=Quantity), direction = 'vh') +
+                geom_hline(yintercept=5, 
+                           ##linetype="dashed", 
+                           color = "brown", 
+                           size=2)
+            return(harm_plot)
+        }
+        
     })
     
     

@@ -47,7 +47,16 @@ d5 <- dataLog %>% filter(Meter == "Tribunales Jicaral", Quant_class == "V THD 1h
 d6 <- dataLog %>% filter(Meter == "Tribunales Jicaral", Quant_class == "Vline")
 
 
+plot_data <- dataLog %>% filter(Meter == "Tribunales Jicaral", Quant_class == "V THD 1hr")
+plot_data$TimestampCR <-  hms::as.hms(plot_data$TimestampCR)
+plot_data <- plot_data %>% 
+  group_by(TimestampCR, Quantity) %>%
+  summarise(Value = mean(Value))
+glimpse(plot_data)
 
+plot_data <- plot_data %>% 
+  group_by(TimestampCR, Quantity) %>%
+  summarise(Value = mean(Value))
 
 
 x <- datatable(iris) %>% 
