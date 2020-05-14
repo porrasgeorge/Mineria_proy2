@@ -8,7 +8,7 @@ source("methods.R")
 DB_getDataSaveFile <- function() {
   final_dateCR <- floor_date(now(), "day") ## corte hasta hoy
   #initial_dateCR <- final_dateCR - months(6) ## 3 meses hacia atras
-  initial_dateCR <- final_dateCR - days(14) ## 3 meses hacia atras
+  initial_dateCR <- final_dateCR - months(1) ## 3 meses hacia atras
   
   initial_date <- with_tz(initial_dateCR, tzone = "UTC")
   final_date <- with_tz(final_dateCR, tzone = "UTC")
@@ -118,7 +118,7 @@ DB_getDataSaveFile <- function() {
   dataLog$TimestampUTC <- as_datetime(dataLog$TimestampUTC)
   dataLog$TimestampCR <-
     with_tz(dataLog$TimestampUTC, tzone = "America/Costa_Rica")
-  dataLog$TimestampUTC <- NULL
+  #dataLog$TimestampUTC <- NULL
   dataLog$ID <- NULL
   
   dataLog <-
@@ -140,5 +140,5 @@ DB_getDataSaveFile <- function() {
   
   
   rm(quantities, quantity, source_ids, quantity_ids, meters_class)
-  ## write_feather(dataLog, "featherFiles/dataLog_big3.feather")
+  ##write_feather(dataLog, "featherFiles/dataLog_big3.feather")
 }

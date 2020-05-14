@@ -17,6 +17,8 @@ start_dateCR <- end_dateCR - weeks(1)
 #dataLog  <- read_feather("featherFiles/dataLog.feather")
 dataLog  <- read_feather("featherFiles/dataLog_big3.feather")
 dataLog$TimestampCR <- as_datetime(dataLog$TimestampCR)
+dataLog$TimestampCR <- floor_date(dataLog$TimestampCR, unit = "minute")
+dataLog <- dataLog %>% distinct(TimestampCR, Cooperative, Meter, Quantity, .keep_all = TRUE)
 
 coop_mets <- dataLog %>%
     distinct(Cooperative, Type, Meter, Quant_class, Quantity) %>%
@@ -203,13 +205,13 @@ server <- function(input, output, session) {
         d1 <- meter_data() %>% filter(Quant_class == "V THD")
         d2 <- meter_data() %>% filter(Quant_class == "V THD 1hr")
         if (nrow(d1) > nrow(d2)){
-            d1$TimestampCR <- floor_date(d1$TimestampCR, unit = "minute")
-            d1 <- d1 %>% distinct(TimestampCR, Quantity, .keep_all = TRUE)
+            # d1$TimestampCR <- floor_date(d1$TimestampCR, unit = "minute")
+            # d1 <- d1 %>% distinct(TimestampCR, Quantity, .keep_all = TRUE)
             return(d1)
         }
         else{
-            d2$TimestampCR <- floor_date(d2$TimestampCR, unit = "minute")
-            d2 <- d2 %>% distinct(TimestampCR, Quantity, .keep_all = TRUE)
+            # d2$TimestampCR <- floor_date(d2$TimestampCR, unit = "minute")
+            # d2 <- d2 %>% distinct(TimestampCR, Quantity, .keep_all = TRUE)
             return(d2)
         }
     })
@@ -364,8 +366,8 @@ server <- function(input, output, session) {
             return (NULL)
         }
         else {
-            Vphase_DataTable_perc()
-            ##voltage_Summary(Vphase_Data(), Vphase_Nominal())
+            in_data <- Vphase_DataTable_perc()
+            return(in_data)
         },
         digits = 0,
         striped = TRUE,
@@ -385,7 +387,6 @@ server <- function(input, output, session) {
         }
         else {
             Vline_DataTable_perc()
-            ##voltage_Summary(Vline_Data(), Vline_Nominal())
         },
         digits = 0,
         striped = TRUE,
@@ -402,7 +403,6 @@ server <- function(input, output, session) {
     ## Phase Voltage Table (Full Table)
     output$Voltphase_DataTable <- renderDT({
         if (nrow(Vphase_Data()) < 2) {
-            ##shiny::showNotification("No data", type = "error")
             NULL
         }
         else {
@@ -412,26 +412,29 @@ server <- function(input, output, session) {
             in_table$Type <- NULL
             in_table$Meter <- NULL
             in_table$Quant_class <- NULL
+            glimpse(in_table)
             if (ncol(in_table) > 3){
                 in_table$Vavg <-
                     round(rowMeans(in_table[, c("Van", "Vbn", "Vcn")]), 2)
             }
+            in_table <- datatable(in_table,
+                                  filter = "bottom",
+                                  selection = "none",
+                                  caption = "Voltajes de Fase",
+                                  options = list(pageLength = 10, columnDefs = list(
+                                      list(className = 'dt-center', targets = "_all")
+                                  )))%>% 
+                formatDate('TimestampCR', "toLocaleString")
             return(in_table)
         }
     },
-    filter = "bottom",
-    selection = "none",
-    caption = "Voltajes de Fase",
-    options = list(pageLength = 10, columnDefs = list(
-        list(className = 'dt-center', targets = "_all")
-    )))
+    )
     
     
     ##########################################################################################
     ## Line Voltage Table (Full Table)
     output$Voltline_DataTable <- renderDT({
         if (nrow(Vline_Data()) < 2) {
-            ##shiny::showNotification("No data", type = "error")
             NULL
         }
         else {
@@ -445,15 +448,18 @@ server <- function(input, output, session) {
                 in_table$Vavg <-
                     round(rowMeans(in_table[, c("Vab", "Vbc", "Vca")]), 2)
             }
+            in_table <- datatable(in_table, 
+                                  filter = "bottom",
+                                  selection = "none",
+                                  caption = "Voltajes de Línea",
+                                  options = list(pageLength = 10, columnDefs = list(
+                                      list(className = 'dt-center', targets = "_all")
+                                  )))%>% 
+                formatDate('TimestampCR', "toLocaleString")
             return(in_table)
         }
     },
-    filter = "bottom",
-    selection = "none",
-    caption = "Voltajes de Línea",
-    options = list(pageLength = 10, columnDefs = list(
-        list(className = 'dt-center', targets = "_all")
-    )))
+    )
     
     
     ##########################################################################################
