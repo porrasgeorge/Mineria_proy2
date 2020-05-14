@@ -15,7 +15,8 @@ end_dateCR <- floor_date(now(), "week", week_start = 1)
 start_dateCR <- end_dateCR - weeks(1)
 
 #dataLog  <- read_feather("featherFiles/dataLog.feather")
-dataLog  <- read_feather("featherFiles/dataLog_big2.feather")
+dataLog  <- read_feather("featherFiles/dataLog_big3.feather")
+dataLog$TimestampCR <- as_datetime(dataLog$TimestampCR)
 
 coop_mets <- dataLog %>%
     distinct(Cooperative, Type, Meter, Quant_class, Quantity) %>%
@@ -95,6 +96,7 @@ ui <- fluidPage(
             "Vline",
             htmlOutput("Vline_NODATA"),
             tableOutput('Vline_table'),
+            plotOutput("hist_Vline_perc"),
             hr(),
             DTOutput('Voltline_DataTable'),
             hr(),
@@ -121,8 +123,8 @@ ui <- fluidPage(
             "Vphase",
             # br(),
             htmlOutput("Vphase_NODATA"),
-            # textOutput("message_text_V"),
             tableOutput('Vphase_table'),
+            plotOutput("hist_Vphase_perc"),
             hr(),
             DTOutput('Voltphase_DataTable'),
             hr(),
@@ -142,11 +144,13 @@ ui <- fluidPage(
         ),
         
         ####################################################################################################
-        ## Tab de Armonicos de Tension
-        
+        ## Voltage Harmonics Tab
         tabPanel("Armonicos de Tensión",
-                 plotOutput("histogram"))
-    ) ## tabsetPanel_2
+                 htmlOutput("Vharm_NODATA"),
+                 DTOutput('Voltharm_DataTable'),
+
+                 )
+    ) ## tabsetPanel
     
 ) ## fluidpage
 
@@ -154,9 +158,11 @@ ui <- fluidPage(
 ################################################################################################
 
 server <- function(input, output, session) {
-    ###################################################################################### Reactivity
+###################################################################################### Reactivity
     
     
+    ####################################################################################################
+    ## Input Selects Dynamic Fill
     observeEvent(input$coop_si, {
         updateSelectInput(session,
                           "type_si",
@@ -176,13 +182,11 @@ server <- function(input, output, session) {
                           choices = coop_mets$Meter[(coop_mets$Type == input$type_si) &
                                                         (coop_mets$Cooperative == input$coop_si)])
     })
-    #
-    #     meter_data <- eventReactive(input$go, {
-    #         return(filter_DataDataSelection(dataLog, input$source_si, input$daterange))
-    #     })
     
+    ####################################################################################################
+    ## Reactive Data
     meter_data <- reactive({
-        return(filter_DataDataSelection(dataLog, input$source_si, input$daterange))
+        return(filter_DataSelection(dataLog, input$source_si, input$daterange))
     })
     
     Vphase_Data <- reactive({
@@ -194,9 +198,24 @@ server <- function(input, output, session) {
         data <- meter_data() %>% filter(Quant_class == "Vline")
         return(data)
     })
+    
+    Vharm_Data <- reactive({
+        d1 <- meter_data() %>% filter(Quant_class == "V THD")
+        d2 <- meter_data() %>% filter(Quant_class == "V THD 1hr")
+        if (nrow(d1) > nrow(d2)){
+            d1$TimestampCR <- floor_date(d1$TimestampCR, unit = "minute")
+            d1 <- d1 %>% distinct(TimestampCR, Quantity, .keep_all = TRUE)
+            return(d1)
+        }
+        else{
+            d2$TimestampCR <- floor_date(d2$TimestampCR, unit = "minute")
+            d2 <- d2 %>% distinct(TimestampCR, Quantity, .keep_all = TRUE)
+            return(d2)
+        }
+    })
 
     ####################################################################################################
-    ## Calculo de tensiones nominales de linea y fase
+    ## Reactive Nominal Phase and Line Voltage Calculation
     
     Vphase_Nominal <- reactive({
         return(guess_Nominal(Vphase_Data()$Value))
@@ -208,7 +227,7 @@ server <- function(input, output, session) {
     
     
     ####################################################################################################
-    ## para las tablas de tensiones clasificadas del 90 al 110%
+    ## Reactive Voltage tables classification from 90% to 110%
     
     Vphase_DataTable <- reactive({
         return(voltage_Summary(Vphase_Data(), Vphase_Nominal()))
@@ -227,7 +246,7 @@ server <- function(input, output, session) {
     })
     
     ####################################################################################################
-    ## Actualizar los Input Sliders
+    ## Input Sliders updates
     
     observeEvent(Vphase_Data(), {
         print("meter_data va a ser modificada")
@@ -269,14 +288,15 @@ server <- function(input, output, session) {
         print("meter_data ha sido modificada")
     })
     
+####################################################################################################
+## Rendering 
     
     ####################################################################################################
-    ## Textos para cantidad de datos
-    
+    ## Phase Voltage Label
     output$Vphase_NODATA <- renderText({
         if (nrow(Vphase_Data()) < 2) {
             paste(
-                "<br><font color=\"#FF0000\"><h2>No hay datos en el periodo seleccionado</h2></font>"
+                "<br><font color=\"#FF0000\"><h2>No hay datos de Voltaje de Fase en el periodo seleccionado</h2></font>"
             )
         }
         else {
@@ -290,10 +310,12 @@ server <- function(input, output, session) {
         }
     })
     
+    ####################################################################################################
+    ## Line Voltage Label
     output$Vline_NODATA <- renderText({
         if (nrow(Vline_Data()) < 2) {
             paste(
-                "<br><font color=\"#FF0000\"><h2>No hay datos en el periodo seleccionado</h2></font>"
+                "<br><font color=\"#FF0000\"><h2>No hay datos de Voltaje de Línea en el periodo seleccionado</h2></font>"
             )
         }
         else {
@@ -301,6 +323,25 @@ server <- function(input, output, session) {
                 "<br>Se tienen: ",
                 "<font color=\"#FF0000\"><b>",
                 nrow(Vline_Data()),
+                "</b></font>",
+                " datos"
+            )
+        }
+    })
+    
+    ####################################################################################################
+    ## Voltage Harmonics Label
+    output$Vharm_NODATA <- renderText({
+        if (nrow(Vharm_Data()) < 2) {
+            paste(
+                "<br><font color=\"#FF0000\"><h2>No hay datos de Armónicos de Voltaje en el periodo seleccionado</h2></font>"
+            )
+        }
+        else {
+            paste(
+                "<br>Se tienen: ",
+                "<font color=\"#FF0000\"><b>",
+                nrow(Vharm_Data()),
                 "</b></font>",
                 " datos"
             )
@@ -361,7 +402,7 @@ server <- function(input, output, session) {
     ## Phase Voltage Table (Full Table)
     output$Voltphase_DataTable <- renderDT({
         if (nrow(Vphase_Data()) < 2) {
-            shiny::showNotification("No data", type = "error")
+            ##shiny::showNotification("No data", type = "error")
             NULL
         }
         else {
@@ -390,7 +431,7 @@ server <- function(input, output, session) {
     ## Line Voltage Table (Full Table)
     output$Voltline_DataTable <- renderDT({
         if (nrow(Vline_Data()) < 2) {
-            shiny::showNotification("No data", type = "error")
+            ##shiny::showNotification("No data", type = "error")
             NULL
         }
         else {
@@ -414,20 +455,68 @@ server <- function(input, output, session) {
         list(className = 'dt-center', targets = "_all")
     )))
     
+    
+    ##########################################################################################
+    ## Voltage Harmonics Table (Full Table)
+    output$Voltharm_DataTable <- renderDT({
+        if (nrow(Vharm_Data()) < 2) {
+            NULL
+        }
+        else {
+            in_table <-
+                Vharm_Data() %>% spread(Quantity, value = Value, fill = 0)
+            in_table$Cooperative <- NULL
+            in_table$Type <- NULL
+            in_table$Meter <- NULL
+            in_table$Quant_class <- NULL
+            return(in_table)
+        }
+    },
+    filter = "bottom",
+    selection = "none",
+    caption = "Harmonicos de Tension",
+    options = list(pageLength = 10, columnDefs = list(
+        list(className = 'dt-center', targets = "_all")
+    )))
+    
     ##########################################################################################
     ## PLOTS
     
     ##########################################################################################
-    ## Voltage Predefined Histogram
-    output$histogram <- renderPlot({
-        if (nrow(Vphase_Data()) < 2) {
+    ## Phase Voltage Percentual Histogram 
+    output$hist_Vphase_perc <- renderPlot({
+        if (is.null(Vphase_DataTable())) {
             return (NULL)
         }
         else {
-            return(create_Histo_Plot(Vphase_Data(),
+            return(create_Histo_Plot(Vphase_DataTable(),
                                      input$source_si))
         }
     })
+    
+    ##########################################################################################
+    ## Line Voltage Percentual Histogram 
+    output$hist_Vline_perc <- renderPlot({
+        if (is.null(Vline_DataTable())) {
+            return (NULL)
+        }
+        else {
+            return(create_Histo_Plot(Vline_DataTable(),
+                                     input$source_si))
+        }
+    })  
+    
+    # output$hist_din_plots <- renderUI({
+    #     if (is.null(Vphase_DataTable())){
+    #         fluidPage(plotOutput("hist_Vline_perc"))
+    #     }
+    #     else{
+    #         fluidPage(plotOutput("hist_Vphase_perc"), 
+    #                   plotOutput("hist_Vline_perc"))
+    #     }
+    # })
+    # 
+    
     
     ##########################################################################################
     ## Phase Voltage Density Plot

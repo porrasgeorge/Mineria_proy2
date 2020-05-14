@@ -1,23 +1,23 @@
 ####################################################################################################
-filter_DataDataSelection <-
+filter_DataSelection <-
   function(dataToFilter, Source, dateRange) {
     ###, quantities){
     print("Filter_DataDataSelection called ...")
     
-    lineV <- dataToFilter %>%
+    data_filt <- dataToFilter %>%
       filter(Meter == Source,
              ##Quantity %in% quantities,
              TimestampCR >= dateRange[1],
              TimestampCR < dateRange[2])
     
-    lineV$Quantity <- factor(lineV$Quantity)
-    lineV$TimestampCR <- format(lineV$TimestampCR, '%d-%m-%Y %H:%M')
+    data_filt$Quantity <- factor(data_filt$Quantity)
+    ##data_filt$TimestampCR <- format(data_filt$TimestampCR, '%d-%m-%Y %H:%M')
     
-    lineV <- lineV %>% arrange(TimestampCR, Quantity)
-    lineV$Value <- round(lineV$Value, 1)
+    data_filt <- data_filt %>% arrange(TimestampCR, Quantity)
+    data_filt$Value <- round(data_filt$Value, 1)
     
     print("Filter_DataDataSelection OK ...")
-    return(lineV)
+    return(data_filt)
   }
 
 ####################################################################################################
@@ -101,24 +101,20 @@ voltage_Summary <- function(data, t_Nom) {
         "TN113"
       )
     )
-  print("NOT HERE")
   voltage_table <-
     as.data.frame(table(
       voltage_DF$Classif,
       voltage_DF$Quantity,
       dnn = c("Classif", "Quantity")
     ))
-  print("NOT HERE 2")
   countsV <- voltage_table %>% group_by(Quantity) %>%
     summarise(CountSum = sum(Freq))
-  print("NOT HERE 3")
   voltage_table <-
     voltage_table %>% left_join(countsV, by = "Quantity")
   voltage_table$Perc <-
     if_else(voltage_table$CountSum == 0,
             0,
             voltage_table$Freq / voltage_table$CountSum)
-  print("NOT HERE 4")
   return(voltage_table)
 }
 
@@ -214,7 +210,6 @@ create_Percent_Table <- function(dataLog_table, t_Nom) {
 
 ####################################################################################################
 create_Histo_Plot <- function(IonData_V, title) {
-  browser()
   p <-
     ggplot(IonData_V, aes(
       x = Classif,
@@ -237,7 +232,7 @@ create_Histo_Plot <- function(IonData_V, title) {
     theme(axis.text.x = element_text(
       angle = 90,
       hjust = 1,
-      size = 8
+      size = 14
     )) +
     ggtitle(title) +
     xlab("Medicion") +
@@ -293,63 +288,44 @@ meter_classes <- function(meters) {
 
 quant_classes <- data.frame(
   Quantity = c(
-    "Vab",
-    "Vbc",
-    "Vca",
-    "Van",
-    "Vbn",
-    "Vcn",
-    "Reactive Power",
-    "Active Power",
-    "Power Factor Lagging AVG",
-    "Power Factor Lagging MAX",
-    "Power Factor Leading AVG",
-    "Power Factor Leading MAX",
-    "Voltage Unbalance AVG",
-    "Voltage Unbalance MAX",
-    "Current IA THD AVG",
-    "Current IB THD AVG",
-    "Current IC THD AVG",
-    "Current IA THD MAX",
-    "Current IB THD MAX",
-    "Current IC THD MAX",
-    "Voltage V1 THD AVG",
-    "Voltage V2 THD AVG",
-    "Voltage V3 THD AVG",
-    "Voltage V1 THD MAX",
-    "Voltage V2 THD MAX",
-    "Voltage V3 THD MAX"
+    'Reactive Power',
+    'Active Power',
+    'Power Factor Lagging',
+    'Power Factor Leading',
+    'Voltage Unbalance',
+    'Vab',
+    'Vbc',
+    'Vca',
+    'Van',
+    'Vbn',
+    'Vcn',
+    'Voltage Va THD',
+    'Voltage Vb THD',
+    'Voltage Vc THD',
+    'Voltage Va THD 1hr',
+    'Voltage Vb THD 1hr',
+    'Voltage Vc THD 1hr'
   )
 )
 
-
 quant_classes$Quant_class <-  c(
-  "Vline",
-  "Vline",
-  "Vline",
-  "Vphase",
-  "Vphase",
-  "Vphase",
   "Power",
   "Power",
   "Power Factor",
   "Power Factor",
-  "Power Factor",
-  "Power Factor",
   "Vunbalance",
-  "Vunbalance",
-  "I THD",
-  "I THD",
-  "I THD",
-  "I THD",
-  "I THD",
-  "I THD",
+  "Vline",
+  "Vline",
+  "Vline",
+  "Vphase",
+  "Vphase",
+  "Vphase",
   "V THD",
   "V THD",
   "V THD",
-  "V THD",
-  "V THD",
-  "V THD"
+  "V THD 1hr",
+  "V THD 1hr",
+  "V THD 1hr"
 )
 
 quant_classes$Quant_class <- factor(quant_classes$Quant_class)

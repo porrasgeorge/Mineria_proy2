@@ -8,7 +8,7 @@ source("methods.R")
 DB_getDataSaveFile <- function() {
   final_dateCR <- floor_date(now(), "day") ## corte hasta hoy
   #initial_dateCR <- final_dateCR - months(6) ## 3 meses hacia atras
-  initial_dateCR <- final_dateCR - months(2) ## 3 meses hacia atras
+  initial_dateCR <- final_dateCR - days(14) ## 3 meses hacia atras
   
   initial_date <- with_tz(initial_dateCR, tzone = "UTC")
   final_date <- with_tz(final_dateCR, tzone = "UTC")
@@ -27,45 +27,30 @@ DB_getDataSaveFile <- function() {
       grepl("^Voltage Phases [ABC][ABC] Mean$", Name) |
         grepl("^Voltage on Input V[123] Mean - Power Quality Monitoring$", Name) |
         grepl("^(Rea|A)ctive Power Mean$", Name) |
-        grepl("^Power Factor (Lagging|Leading) (Mean|High)$", Name) |
-        grepl("^Voltage Unbalance (Mean|High)$", Name) |
-        grepl(
-          "^Current Total Harmonic Distortion Phase [ABC] (Mean|High)$",
-          Name
-        ) |
-        grepl(
-          "^Voltage Total Harmonic Distortion (Mean|High) on Input V[123]$",
-          Name
-        )
+        grepl("^Power Factor (Lagging|Leading) Mean$", Name) |
+        grepl("^Voltage Unbalance Mean$", Name) |
+        grepl("^Voltage Total Harmonic Distortion 10-minute Mean on Input V[123]$",Name) |
+        grepl("^Voltage Total Harmonic Distortion Mean on Input V[123]$",Name)
     ) %>%
     arrange(ID)
   quantities$Name <- c(
-    'Current IA THD MAX',
-    'Current IA THD AVG',
-    'Current IB THD MAX',
-    'Current IB THD AVG',
-    'Current IC THD MAX',
-    'Current IC THD AVG',
     'Reactive Power',
     'Active Power',
-    'Power Factor Lagging MAX',
-    'Power Factor Lagging AVG',
-    'Power Factor Leading MAX',
-    'Power Factor Leading AVG',
-    'Voltage Unbalance MAX',
-    'Voltage Unbalance AVG',
-    'Voltage V1 THD MAX',
-    'Voltage V1 THD AVG',
-    'Voltage V2 THD MAX',
-    'Voltage V2 THD AVG',
-    'Voltage V3 THD MAX',
-    'Voltage V3 THD AVG',
+    'Power Factor Lagging',
+    'Power Factor Leading',
+    'Voltage Unbalance',
+    'Voltage Va THD 1hr',
+    'Voltage Vb THD 1hr',
+    'Voltage Vc THD 1hr',
     'Vab',
     'Vbc',
     'Vca',
     'Van',
     'Vbn',
-    'Vcn'
+    'Vcn',
+    'Voltage Va THD',
+    'Voltage Vb THD',
+    'Voltage Vc THD'
   )
   
   source_ids <- paste0(sources$ID, collapse = ",")
@@ -155,5 +140,5 @@ DB_getDataSaveFile <- function() {
   
   
   rm(quantities, quantity, source_ids, quantity_ids, meters_class)
-  ## write_feather(dataLog, "featherFiles/dataLog_big2.feather")
+  ## write_feather(dataLog, "featherFiles/dataLog_big3.feather")
 }
