@@ -288,44 +288,50 @@ meter_classes <- function(meters) {
 
 quant_classes <- data.frame(
   Quantity = c(
+    'Ia',
+    'Ib',
+    'Ic',
     'Reactive Power',
     'Active Power',
     'Power Factor Lagging',
     'Power Factor Leading',
     'Voltage Unbalance',
+    'Va THD 1hr',
+    'Vb THD 1hr',
+    'Vc THD 1hr',
     'Vab',
     'Vbc',
     'Vca',
     'Van',
     'Vbn',
     'Vcn',
-    'Voltage Va THD',
-    'Voltage Vb THD',
-    'Voltage Vc THD',
-    'Voltage Va THD 1hr',
-    'Voltage Vb THD 1hr',
-    'Voltage Vc THD 1hr'
+    'Va THD',
+    'Vb THD',
+    'Vc THD'
   )
 )
 
 quant_classes$Quant_class <-  c(
+  "Current",
+  "Current",
+  "Current",
   "Power",
   "Power",
   "Power Factor",
   "Power Factor",
   "Vunbalance",
-  "Vline",
-  "Vline",
-  "Vline",
-  "Vphase",
-  "Vphase",
-  "Vphase",
-  "V THD",
-  "V THD",
-  "V THD",
   "V THD 1hr",
   "V THD 1hr",
-  "V THD 1hr"
+  "V THD 1hr",
+  "Vline",
+  "Vline",
+  "Vline",
+  "Vphase",
+  "Vphase",
+  "Vphase",
+  "V THD",
+  "V THD",
+  "V THD"
 )
 
 quant_classes$Quant_class <- factor(quant_classes$Quant_class)

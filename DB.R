@@ -8,7 +8,7 @@ source("methods.R")
 DB_getDataSaveFile <- function() {
   final_dateCR <- floor_date(now(), "day") ## corte hasta hoy
   #initial_dateCR <- final_dateCR - months(6) ## 3 meses hacia atras
-  initial_dateCR <- final_dateCR - months(1) ## 3 meses hacia atras
+  initial_dateCR <- final_dateCR - days(18) ## 3 meses hacia atras
   
   initial_date <- with_tz(initial_dateCR, tzone = "UTC")
   final_date <- with_tz(final_dateCR, tzone = "UTC")
@@ -30,27 +30,32 @@ DB_getDataSaveFile <- function() {
         grepl("^Power Factor (Lagging|Leading) Mean$", Name) |
         grepl("^Voltage Unbalance Mean$", Name) |
         grepl("^Voltage Total Harmonic Distortion 10-minute Mean on Input V[123]$",Name) |
-        grepl("^Voltage Total Harmonic Distortion Mean on Input V[123]$",Name)
+        grepl("^Voltage Total Harmonic Distortion Mean on Input V[123]$",Name) |
+        grepl("^Current Phase [ABC] Mean$",Name)
+      
     ) %>%
     arrange(ID)
   quantities$Name <- c(
+    'Ia',
+    'Ib',
+    'Ic',
     'Reactive Power',
     'Active Power',
     'Power Factor Lagging',
     'Power Factor Leading',
     'Voltage Unbalance',
-    'Voltage Va THD 1hr',
-    'Voltage Vb THD 1hr',
-    'Voltage Vc THD 1hr',
+    'Va THD 1hr',
+    'Vb THD 1hr',
+    'Vc THD 1hr',
     'Vab',
     'Vbc',
     'Vca',
     'Van',
     'Vbn',
     'Vcn',
-    'Voltage Va THD',
-    'Voltage Vb THD',
-    'Voltage Vc THD'
+    'Va THD',
+    'Vb THD',
+    'Vc THD'
   )
   
   source_ids <- paste0(sources$ID, collapse = ",")
@@ -109,16 +114,17 @@ DB_getDataSaveFile <- function() {
       "time needed: ",
       end_time - start_time
     ))
+    print(end_time - start_time)
     
     initial_date <- end_day_date
   }
   
   odbcCloseAll()
   
-  dataLog$TimestampUTC <- as_datetime(dataLog$TimestampUTC)
+  dataLog$TimestampUTC <- as_datetime(dataLog$TimestampUTC, tz = "UTC")
   dataLog$TimestampCR <-
     with_tz(dataLog$TimestampUTC, tzone = "America/Costa_Rica")
-  #dataLog$TimestampUTC <- NULL
+  dataLog$TimestampUTC <- NULL
   dataLog$ID <- NULL
   
   dataLog <-
@@ -140,5 +146,6 @@ DB_getDataSaveFile <- function() {
   
   
   rm(quantities, quantity, source_ids, quantity_ids, meters_class)
-  ##write_feather(dataLog, "featherFiles/dataLog_big3.feather")
+  write_feather(dataLog, "featherFiles/dataLog_big3.feather")
 }
+

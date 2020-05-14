@@ -5,7 +5,7 @@ library(tidyr)
 
 
 final_dateCR <- floor_date(now(), "day") ## corte hasta hoy
-initial_dateCR <- final_dateCR - days(3) ## 3 meses hacia atras 
+initial_dateCR <- final_dateCR - days(1) ## 3 meses hacia atras 
 initial_date <- with_tz(initial_dateCR, tzone = "UTC") 
 final_date <- with_tz(final_dateCR, tzone = "UTC")
 
@@ -44,7 +44,8 @@ glimpse(d4)
 
 
 d5 <- dataLog %>% filter(Meter == "Tribunales Jicaral", Quant_class == "V THD 1hr")
-d6 <- dataLog %>% filter(Meter == "Tribunales Jicaral", Quant_class == "V THD")
+d6 <- dataLog %>% filter(Meter == "Tribunales Jicaral", Quant_class == "Vline")
+
 
 
 

@@ -16,7 +16,7 @@ start_dateCR <- end_dateCR - weeks(1)
 
 #dataLog  <- read_feather("featherFiles/dataLog.feather")
 dataLog  <- read_feather("featherFiles/dataLog_big3.feather")
-dataLog$TimestampCR <- as_datetime(dataLog$TimestampCR)
+##dataLog$TimestampCR <- as_datetime(dataLog$TimestampCR)
 dataLog$TimestampCR <- floor_date(dataLog$TimestampCR, unit = "minute")
 dataLog <- dataLog %>% distinct(TimestampCR, Cooperative, Meter, Quantity, .keep_all = TRUE)
 
@@ -205,13 +205,9 @@ server <- function(input, output, session) {
         d1 <- meter_data() %>% filter(Quant_class == "V THD")
         d2 <- meter_data() %>% filter(Quant_class == "V THD 1hr")
         if (nrow(d1) > nrow(d2)){
-            # d1$TimestampCR <- floor_date(d1$TimestampCR, unit = "minute")
-            # d1 <- d1 %>% distinct(TimestampCR, Quantity, .keep_all = TRUE)
             return(d1)
         }
         else{
-            # d2$TimestampCR <- floor_date(d2$TimestampCR, unit = "minute")
-            # d2 <- d2 %>% distinct(TimestampCR, Quantity, .keep_all = TRUE)
             return(d2)
         }
     })
@@ -446,16 +442,28 @@ server <- function(input, output, session) {
             in_table$Quant_class <- NULL
             if (ncol(in_table) > 3){
                 in_table$Vavg <-
-                    round(rowMeans(in_table[, c("Vab", "Vbc", "Vca")]), 2)
+                    rowMeans(in_table[, c("Vab", "Vbc", "Vca")])
+                in_table <- datatable(in_table, 
+                                      filter = "bottom",
+                                      selection = "none",
+                                      caption = "Voltajes de Línea",
+                                      options = list(pageLength = 10, columnDefs = list(
+                                          list(className = 'dt-center', targets = "_all")
+                                      )))%>% 
+                    formatDate('TimestampCR', "toLocaleString") %>% 
+                    formatRound(columns= 2:5, digits=0)
             }
-            in_table <- datatable(in_table, 
-                                  filter = "bottom",
-                                  selection = "none",
-                                  caption = "Voltajes de Línea",
-                                  options = list(pageLength = 10, columnDefs = list(
-                                      list(className = 'dt-center', targets = "_all")
-                                  )))%>% 
-                formatDate('TimestampCR', "toLocaleString")
+            else{
+                in_table <- datatable(in_table, 
+                                      filter = "bottom",
+                                      selection = "none",
+                                      caption = "Voltajes de Línea",
+                                      options = list(pageLength = 10, columnDefs = list(
+                                          list(className = 'dt-center', targets = "_all")
+                                      )))%>% 
+                    formatDate('TimestampCR', "toLocaleString") %>% 
+                    formatRound(columns= 2, digits=0) 
+            }
             return(in_table)
         }
     },
@@ -475,15 +483,17 @@ server <- function(input, output, session) {
             in_table$Type <- NULL
             in_table$Meter <- NULL
             in_table$Quant_class <- NULL
+            in_table <- datatable(in_table,filter = "bottom",
+                                  selection = "none",
+                                  caption = "Harmonicos de Tension",
+                                  options = list(pageLength = 10, columnDefs = list(
+                                      list(className = 'dt-center', targets = "_all")
+                                  )))%>% 
+                formatDate('TimestampCR', "toLocaleString") %>% 
+                formatRound(columns= 2:4, digits=2)
             return(in_table)
         }
-    },
-    filter = "bottom",
-    selection = "none",
-    caption = "Harmonicos de Tension",
-    options = list(pageLength = 10, columnDefs = list(
-        list(className = 'dt-center', targets = "_all")
-    )))
+    })
     
     ##########################################################################################
     ## PLOTS
