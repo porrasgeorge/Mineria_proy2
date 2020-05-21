@@ -119,9 +119,8 @@ voltage_Summary <- function(data, t_Nom) {
 }
 
 ####################################################################################################
-create_Percent_Table <- function(dataLog_table, t_Nom) {
-  print("create_Percent_Table called ...")
-  ##browser()
+create_Volt_Percent_Table <- function(dataLog_table, t_Nom) {
+  print("create_Volt_Percent_Table called ...")
   dataLog_table$Perc <-
     scales::label_percent(accuracy = 0.01)(dataLog_table$Perc)
   dataLog_table$Freq <- as.integer(dataLog_table$Freq)
@@ -239,6 +238,50 @@ create_Histo_Plot <- function(IonData_V, title) {
     ylab("Porcentaje")
   
   return(p)
+}
+
+create_THD_Percent_Table <- function(data) {
+  print("create_THD_Percent_Table called ...")
+  #browser()
+  
+  if (nrow(data) < 2) {
+    return (NULL)
+  }
+  
+  data_factors <- unique(as.character(data$Quantity))
+  data$Quantity <- factor(data$Quantity, levels = data_factors)
+  
+  data$Perc_class <- if_else(data$Value < 3, "0-3%", "3-100%")
+  data$Perc_class <- factor(data$Perc_class, levels = c("0-3%", "3-100%"))
+  
+  data <- as.data.frame(table(data$Perc_class, data$Quantity, dnn = c("Classif", "Quantity")))
+  
+
+  countsTHD <- data %>% group_by(Quantity) %>%
+    summarise(CountSum = sum(Freq))
+  data <-
+    data %>% left_join(countsTHD, by = "Quantity")
+  data$Perc <-
+    if_else(data$CountSum == 0,
+            0,
+            data$Freq / data$CountSum)
+  t1 <-
+    data %>% select(Classif, Quantity, Freq) %>% spread(Quantity, value = Freq, fill = 0)
+  t2 <-
+    data %>% select(Classif, Quantity, Perc) %>% spread(Quantity, value = Perc, fill = 0)
+  t3 <- t1 %>% left_join(t2, by = "Classif")
+  rm(t1, t2)
+  t3 <- t3[, c(1, 2, 5, 3, 6, 4, 7)]
+  colnames(t3) <-
+    c("Clasificacion",
+      "Cantidad Va",
+      "Porcentaje Va",
+      "Cantidad Vb",
+      "Porcentaje Vb",
+      "Cantidad Vc",
+      "Porcentaje Vc")
+  
+  return(t3)
 }
 
 # create_Excel_file <- function(table, ws_name){

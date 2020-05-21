@@ -1,4 +1,5 @@
 library(RODBC)
+library(feather)
 library(lubridate)
 library(dplyr) 
 library(tidyr)
@@ -28,6 +29,26 @@ d2$QuantityID <- NULL
 colnames(d2) <- c("Cantidad", "Quantity", "Meter")
 d2 <- d2 %>% arrange(Meter, Quantity)
 
+write_feather(d2, "featherFiles/d2.feather")
+
+d2 <- read_feather("featherFiles/d2.feather")
+d3 <- d2 %>% 
+  filter(Cantidad > 15) %>%
+  group_by(Quantity) %>%
+  summarise(avg = mean(Cantidad))
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 d3 <- d2 %>% 
   filter(Meter == "Coopealfaroruiz.Sub_Laguna") %>%
@@ -38,6 +59,7 @@ d3 <- d2 %>%
 d4 <- dataLog %>% filter(Meter == "Cacao", Quant_class == "V THD")
 d4$TimestampCR <- floor_date(d4$TimestampCR, unit = "minute")
 d5 <- d4 %>% distinct(TimestampCR, Quantity, .keep_all = TRUE)
+
 
 
 glimpse(d4)

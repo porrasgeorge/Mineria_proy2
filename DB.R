@@ -8,7 +8,7 @@ source("methods.R")
 DB_getDataSaveFile <- function() {
   final_dateCR <- floor_date(now(), "day") ## corte hasta hoy
   #initial_dateCR <- final_dateCR - months(6) ## 3 meses hacia atras
-  initial_dateCR <- final_dateCR - days(18) ## 3 meses hacia atras
+  initial_dateCR <- final_dateCR - days(23) ## 3 meses hacia atras
   
   initial_date <- with_tz(initial_dateCR, tzone = "UTC")
   final_date <- with_tz(final_dateCR, tzone = "UTC")

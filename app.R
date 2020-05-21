@@ -149,6 +149,7 @@ ui <- fluidPage(
         ## Voltage Harmonics Tab
         tabPanel("Armonicos de Tensión",
                  htmlOutput("Vharm_NODATA"),
+                 DTOutput('VoltharmPerc_DataTable'),
                  plotOutput("plot_Vharm"),
                  plotOutput('plot_Vharm_byHour'),
                  DTOutput('Voltharm_DataTable')
@@ -237,12 +238,18 @@ server <- function(input, output, session) {
     })
 
     Vphase_DataTable_perc <- reactive({
-        return(create_Percent_Table(Vphase_DataTable(), Vphase_Nominal()))
+        return(create_Volt_Percent_Table(Vphase_DataTable(), Vphase_Nominal()))
     })
 
     Vline_DataTable_perc <- reactive({
-        return(create_Percent_Table(Vline_DataTable(), Vline_Nominal()))
+        return(create_Volt_Percent_Table(Vline_DataTable(), Vline_Nominal()))
     })
+    
+    Vharm_DataTable_perc <- reactive({
+        return(create_THD_Percent_Table(Vharm_Data()))
+    })
+    
+    
     
     ####################################################################################################
     ## Input Sliders updates
@@ -495,6 +502,27 @@ server <- function(input, output, session) {
             return(in_table)
         }
     })
+    ##########################################################################################
+    ## Voltage Harmonics Table (Resumed and classified)
+    output$VoltharmPerc_DataTable <- renderDT({
+        if (is.null(Vharm_DataTable_perc())) {
+            return(NULL)
+        }
+        else {
+            in_table <-
+                Vharm_DataTable_perc()
+            in_table <- datatable(in_table,##filter = "bottom",
+                                  selection = "none",
+                                  caption = "Harmonicos de Tension",
+                                  options = list(pageLength = 10, columnDefs = list(
+                                      list(className = 'dt-center', targets = "_all")
+                                  )))%>% 
+                formatPercentage(c(3, 5, 7), 1)
+            return(in_table)
+        }
+    })    
+    
+    
     
     ##########################################################################################
     ## PLOTS
@@ -643,12 +671,15 @@ server <- function(input, output, session) {
             plot_data <- Vharm_Data()
             ggplot(data=plot_data, aes(x=TimestampCR, y=Value, group=Quantity)) +
                 geom_step(aes(color=Quantity), direction = 'vh') +
-                geom_hline(yintercept=5, 
+                geom_hline(yintercept=3, 
                            linetype="dashed", 
+                           color = "chocolate1", 
+                           size=1.1)+
+                geom_hline(yintercept=5, 
+                           #linetype="dashed", 
                            color = "red", 
-                           size=2)
+                           size=1.4)
         }
-        
     })
 
     ##########################################################################################
@@ -666,14 +697,11 @@ server <- function(input, output, session) {
             harm_plot <- ggplot(data=plot_data, aes(x=TimestampCR, y=Value, group=Quantity)) +
                 geom_step(aes(color=Quantity), direction = 'vh') +
                 geom_hline(yintercept=5, 
-                           ##linetype="dashed", 
-                           color = "brown", 
-                           size=2)
+                           linetype="dashed", 
+                           color = "chocolate1", 
+                           size=1.2)
             return(harm_plot)
         }
-        
     })
-    
-    
 }
 shinyApp (ui = ui, server = server)
